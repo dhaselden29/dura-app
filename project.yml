@@ -1,0 +1,115 @@
+name: DURA
+options:
+  bundleIdPrefix: com.dura
+  deploymentTarget:
+    iOS: "18.0"
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  defaultConfig: Debug
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: true
+  configs:
+    Debug:
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    Release:
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+
+schemes:
+  DURA_macOS:
+    build:
+      targets:
+        DURA_macOS: all
+        DURATests_macOS: [test]
+    test:
+      targets:
+        - DURATests_macOS
+  DURA_iOS:
+    build:
+      targets:
+        DURA_iOS: all
+        DURATests_iOS: [test]
+    test:
+      targets:
+        - DURATests_iOS
+
+targets:
+  DURA_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: DURA
+        excludes:
+          - "**/.DS_Store"
+    resources:
+      - path: DURA/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dura.app
+        PRODUCT_NAME: DURA
+        INFOPLIST_FILE: DURA/Info.plist
+        CODE_SIGN_ENTITLEMENTS: DURA/DURA.entitlements
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: false
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+    dependencies: []
+
+  DURA_macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: DURA
+        excludes:
+          - "**/.DS_Store"
+    resources:
+      - path: DURA/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dura.app
+        PRODUCT_NAME: DURA
+        INFOPLIST_FILE: DURA/Info.plist
+        CODE_SIGN_ENTITLEMENTS: DURA/DURA.entitlements
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: false
+        SUPPORTS_MACCATALYST: false
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+    dependencies: []
+
+  DURATests_iOS:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: DURATests
+    dependencies:
+      - target: DURA_iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dura.app.tests
+        GENERATE_INFOPLIST_FILE: true
+
+  DURATests_macOS:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: DURATests
+    dependencies:
+      - target: DURA_macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dura.app.tests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/DURA.app/Contents/MacOS/DURA"
+        BUNDLE_LOADER: "$(TEST_HOST)"
