@@ -3,6 +3,7 @@ import Foundation
 /// Tracks the editorial workflow stage of a note/draft on the Kanban board.
 enum KanbanStatus: String, Codable, CaseIterable, Identifiable {
     case none
+    case note
     case idea
     case researching
     case drafting
@@ -14,6 +15,7 @@ enum KanbanStatus: String, Codable, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .none: "None"
+        case .note: "Note"
         case .idea: "Idea"
         case .researching: "Researching"
         case .drafting: "Drafting"
@@ -25,6 +27,7 @@ enum KanbanStatus: String, Codable, CaseIterable, Identifiable {
     var iconName: String {
         switch self {
         case .none: "circle.dashed"
+        case .note: "doc.text"
         case .idea: "lightbulb"
         case .researching: "magnifyingglass"
         case .drafting: "pencil"

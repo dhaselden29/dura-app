@@ -70,7 +70,7 @@ final class DataServiceTests: XCTestCase {
 
         ds.demoteFromDraft(note)
         XCTAssertFalse(note.isDraft)
-        XCTAssertEqual(note.kanbanStatus, .none)
+        XCTAssertEqual(note.kanbanStatus, .note)
     }
 
     func testMoveNoteToNotebook() throws {

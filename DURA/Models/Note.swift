@@ -14,7 +14,7 @@ final class Note {
     var isPinned: Bool = false
     var isFavorite: Bool = false
     var isBookmark: Bool = false
-    var kanbanStatusRaw: String = KanbanStatus.none.rawValue
+    var kanbanStatusRaw: String = KanbanStatus.note.rawValue
     var draftMetadataData: Data?
 
     @Relationship(inverse: \Tag.notes)
@@ -53,7 +53,10 @@ final class Note {
     }
 
     var kanbanStatus: KanbanStatus {
-        get { KanbanStatus(rawValue: kanbanStatusRaw) ?? .none }
+        get {
+            let status = KanbanStatus(rawValue: kanbanStatusRaw) ?? .note
+            return status == .none ? .note : status
+        }
         set { kanbanStatusRaw = newValue.rawValue }
     }
 

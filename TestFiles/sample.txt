@@ -1,0 +1,2 @@
+Plain Text Import Test
+This is a plain text (.txt) file used to test the plain text import provider. The first line above should become the note title.

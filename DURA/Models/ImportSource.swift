@@ -7,6 +7,7 @@ enum ImportSource: String, Codable, CaseIterable, Identifiable {
     case appleNotes
     case goodnotes
     case pdf
+    case docx
     case web
     case kindle
     case email
@@ -24,6 +25,7 @@ enum ImportSource: String, Codable, CaseIterable, Identifiable {
         case .appleNotes: "Apple Notes"
         case .goodnotes: "GoodNotes"
         case .pdf: "PDF"
+        case .docx: "DOCX"
         case .web: "Web"
         case .kindle: "Kindle"
         case .email: "Email"

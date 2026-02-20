@@ -140,7 +140,7 @@ final class DataService: @unchecked Sendable {
 
     func demoteFromDraft(_ note: Note) {
         note.draftMetadata = nil
-        note.kanbanStatus = .none
+        note.kanbanStatus = .note
         note.modifiedAt = Date()
     }
 

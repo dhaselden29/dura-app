@@ -12,7 +12,7 @@ struct NoteModelTests {
         #expect(note.title == "")
         #expect(note.body == "")
         #expect(note.source == .manual)
-        #expect(note.kanbanStatus == .none)
+        #expect(note.kanbanStatus == .note)
         #expect(note.isPinned == false)
         #expect(note.isFavorite == false)
         #expect(note.isBookmark == false)
@@ -84,7 +84,7 @@ struct KanbanStatusTests {
     func boardStatuses() {
         let statuses = KanbanStatus.boardStatuses
         #expect(!statuses.contains(.none))
-        #expect(statuses.count == 5)
+        #expect(statuses.count == 6)
     }
 
     @Test("All cases have display names")

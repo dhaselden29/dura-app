@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct NoteListContentView: View {
     @Binding var selectedNote: Note?
@@ -9,6 +10,12 @@ struct NoteListContentView: View {
     @Query(sort: \Note.modifiedAt, order: .reverse) private var allNotes: [Note]
     @State private var searchText = ""
     @State private var sortOrder: NoteSortOrder = .modifiedDescending
+
+    // Import state
+    @State private var showFileImporter = false
+    @State private var importProgress: Double?
+    @State private var importError: ImportError?
+    @State private var showImportError = false
 
     var body: some View {
         List(filteredNotes, selection: $selectedNote) { note in
@@ -53,6 +60,13 @@ struct NoteListContentView: View {
                 .keyboardShortcut("n", modifiers: .command)
             }
 
+            ToolbarItem(placement: .primaryAction) {
+                Button { showFileImporter = true } label: {
+                    Label("Import File", systemImage: "square.and.arrow.down")
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+            }
+
             ToolbarItem(placement: .automatic) {
                 Menu {
                     ForEach(NoteSortOrder.allCases) { order in
@@ -72,6 +86,33 @@ struct NoteListContentView: View {
                 }
             }
         }
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.pdf, .plainText, .markdown, .rtf, .rtfd, .image, UTType("org.openxmlformats.wordprocessingml.document")!],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first {
+                    performImport(url: url)
+                }
+            case .failure(let error):
+                importError = .fileReadFailed(error.localizedDescription)
+                showImportError = true
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let progress = importProgress {
+                ImportProgressOverlay(progress: progress)
+            }
+        }
+        .alert("Import Failed", isPresented: $showImportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let error = importError {
+                Text(error.localizedDescription)
+            }
+        }
         .overlay {
             if filteredNotes.isEmpty {
                 if searchText.isEmpty {
@@ -85,6 +126,15 @@ struct NoteListContentView: View {
                 }
             }
         }
+        #if os(macOS)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            let supportedExtensions = ["pdf", "txt", "md", "markdown", "rtf", "rtfd", "docx", "png", "jpg", "jpeg", "heic", "tiff"]
+            guard supportedExtensions.contains(url.pathExtension.lowercased()) else { return false }
+            performImport(url: url)
+            return true
+        }
+        #endif
     }
 
     // MARK: - Filtering
@@ -135,5 +185,33 @@ struct NoteListContentView: View {
         }
         let note = dataService.createNote(title: "", notebook: notebook)
         selectedNote = note
+    }
+
+    private func performImport(url: URL) {
+        let service = ImportService(dataService: dataService)
+        var notebook: Notebook?
+        if case .notebook(let nb) = sidebarSelection {
+            notebook = nb
+        }
+
+        importProgress = 0
+
+        Task {
+            do {
+                let note = try await service.importFile(at: url, into: notebook) { value in
+                    importProgress = value
+                }
+                selectedNote = note
+                importProgress = nil
+            } catch let error as ImportError {
+                importProgress = nil
+                importError = error
+                showImportError = true
+            } catch {
+                importProgress = nil
+                importError = .fileReadFailed(error.localizedDescription)
+                showImportError = true
+            }
+        }
     }
 }

@@ -11,6 +11,21 @@ struct NoteDetailView: View {
     @State private var showTagPicker = false
     @State private var showNotebookPicker = false
     @State private var newTagName = ""
+    @State private var lastKnownTitle: String?
+    @State private var lastKnownBody: String?
+
+    // Export state
+    @State private var exportProgress: Double = 0
+    @State private var exportError: String?
+    @State private var showExportError = false
+    @State private var showFileExporter = false
+    @State private var exportResult: ExportResult?
+
+    // Publish state
+    @State private var isPublishing = false
+    @State private var publishError: String?
+    @State private var showPublishError = false
+    @State private var showPublishSuccess = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -36,7 +51,17 @@ struct NoteDetailView: View {
             // Status bar
             statusBar
         }
+        .onAppear {
+            lastKnownTitle = note.title
+            lastKnownBody = note.body
+        }
+        .onChange(of: note.id) {
+            lastKnownTitle = note.title
+            lastKnownBody = note.body
+        }
         .onChange(of: note.body) {
+            guard note.body != lastKnownBody else { return }
+            lastKnownBody = note.body
             note.modifiedAt = Date()
             if note.isDraft {
                 var meta = note.draftMetadata ?? DraftMetadata()
@@ -45,6 +70,8 @@ struct NoteDetailView: View {
             }
         }
         .onChange(of: note.title) {
+            guard note.title != lastKnownTitle else { return }
+            lastKnownTitle = note.title
             note.modifiedAt = Date()
         }
         .navigationTitle(note.title.isEmpty ? "Untitled" : note.title)
@@ -62,6 +89,41 @@ struct NoteDetailView: View {
             }
         }
         #endif
+        .fileExporter(
+            isPresented: $showFileExporter,
+            document: exportResult.map { ExportDocument(data: $0.data, contentType: $0.utType) },
+            contentType: exportResult?.utType ?? .plainText,
+            defaultFilename: exportResult?.filename ?? "export"
+        ) { result in
+            if case .failure(let error) = result {
+                exportError = error.localizedDescription
+                showExportError = true
+            }
+            exportResult = nil
+        }
+        .overlay(alignment: .bottom) {
+            if exportProgress > 0 && exportProgress < 1 {
+                ExportProgressOverlay(progress: exportProgress)
+            }
+            if isPublishing {
+                ExportProgressOverlay(progress: 0.5, label: "Publishing...")
+            }
+        }
+        .alert("Export Error", isPresented: $showExportError) {
+            Button("OK") { exportError = nil }
+        } message: {
+            Text(exportError ?? "An unknown error occurred.")
+        }
+        .alert("Publish Error", isPresented: $showPublishError) {
+            Button("OK") { publishError = nil }
+        } message: {
+            Text(publishError ?? "An unknown error occurred.")
+        }
+        .alert("Published", isPresented: $showPublishSuccess) {
+            Button("OK") {}
+        } message: {
+            Text("Your post has been published to WordPress.")
+        }
     }
 
     // MARK: - Metadata Bar
@@ -135,6 +197,17 @@ struct NoteDetailView: View {
                         .background(.green.opacity(0.15))
                         .clipShape(Capsule())
                 }
+
+                // WordPress status badge
+                if let meta = note.draftMetadata, meta.wordpressPostId != nil {
+                    Label(meta.wordpressStatus.displayName, systemImage: "globe")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.purple.opacity(0.15))
+                        .clipShape(Capsule())
+                }
             }
             .padding(.horizontal)
             .padding(.vertical, 6)
@@ -178,6 +251,46 @@ struct NoteDetailView: View {
                 dataService.toggleFavorite(note)
             } label: {
                 Label(note.isFavorite ? "Unfavorite" : "Favorite", systemImage: note.isFavorite ? "star.slash" : "star")
+            }
+
+            Divider()
+
+            // Export submenu
+            Menu("Export As...") {
+                Button {
+                    performExport(format: .markdown)
+                } label: {
+                    Label("Markdown (.md)", systemImage: "doc.text")
+                }
+
+                Button {
+                    performExport(format: .html)
+                } label: {
+                    Label("HTML (.html)", systemImage: "globe")
+                }
+
+                Button {
+                    performExport(format: .pdf)
+                } label: {
+                    Label("PDF (.pdf)", systemImage: "doc.richtext")
+                }
+            }
+
+            // WordPress publish (only for drafts)
+            if note.isDraft {
+                Menu("Publish to WordPress") {
+                    Button {
+                        publishToWordPress(asDraft: false)
+                    } label: {
+                        Label("Publish", systemImage: "paperplane")
+                    }
+
+                    Button {
+                        publishToWordPress(asDraft: true)
+                    } label: {
+                        Label("Save as WP Draft", systemImage: "doc.text")
+                    }
+                }
             }
 
             Divider()
@@ -280,6 +393,70 @@ struct NoteDetailView: View {
                 }
             }
             .frame(minWidth: 200, minHeight: 200)
+        }
+    }
+
+    // MARK: - Export
+
+    private func performExport(format: ExportFormat) {
+        let service = ExportService()
+        let title = note.title.isEmpty ? "Untitled" : note.title
+        let markdown = note.body
+
+        exportProgress = 0.01
+
+        Task {
+            do {
+                let result = try await service.export(
+                    title: title,
+                    markdown: markdown,
+                    format: format
+                ) { progress in
+                    Task { @MainActor in
+                        exportProgress = progress
+                    }
+                }
+                exportResult = result
+                exportProgress = 0
+                showFileExporter = true
+            } catch {
+                exportProgress = 0
+                exportError = error.localizedDescription
+                showExportError = true
+            }
+        }
+    }
+
+    // MARK: - WordPress Publish
+
+    private func publishToWordPress(asDraft: Bool) {
+        guard let config = WordPressCredentialStore().load() else {
+            publishError = "WordPress is not configured. Go to Settings > WordPress to set up your credentials."
+            showPublishError = true
+            return
+        }
+
+        isPublishing = true
+
+        Task {
+            do {
+                let service = WordPressService()
+                let updatedMeta = try await service.publishPost(
+                    title: note.title,
+                    markdown: note.body,
+                    metadata: note.draftMetadata ?? DraftMetadata(),
+                    config: config,
+                    asDraft: asDraft
+                )
+                note.draftMetadata = updatedMeta
+                isPublishing = false
+                showPublishSuccess = true
+                try? dataService.save()
+            } catch {
+                isPublishing = false
+                publishError = error.localizedDescription
+                showPublishError = true
+            }
         }
     }
 
