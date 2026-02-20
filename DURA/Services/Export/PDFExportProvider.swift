@@ -78,10 +78,6 @@ struct PDFExportProvider: ExportProvider {
             height: pageHeight - 2 * margin
         )
 
-        let textStorage = NSTextStorage(attributedString: attrString)
-        let layoutManager = NSLayoutManager()
-        textStorage.addLayoutManager(layoutManager)
-
         let pdfData = NSMutableData()
         var mediaBox = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
 
@@ -90,37 +86,34 @@ struct PDFExportProvider: ExportProvider {
             throw ExportError.pdfGenerationFailed("Could not create PDF context")
         }
 
-        var glyphRange = NSRange(location: 0, length: 0)
-        var currentLocation = 0
-        let totalGlyphs = layoutManager.numberOfGlyphs
+        // Use CTFramesetter for reliable multi-page PDF rendering
+        let framesetter = CTFramesetterCreateWithAttributedString(attrString)
+        let totalLength = attrString.length
+        var currentIndex = 0
 
-        while currentLocation < totalGlyphs {
-            let textContainer = NSTextContainer(containerSize: contentRect.size)
-            textContainer.lineFragmentPadding = 0
-            layoutManager.addTextContainer(textContainer)
-
-            // Force layout
-            glyphRange = layoutManager.glyphRange(for: textContainer)
-            if glyphRange.length == 0 { break }
-
+        while currentIndex < totalLength {
             context.beginPage(mediaBox: &mediaBox)
 
-            // Flip coordinate system for text drawing
+            let path = CGPath(rect: contentRect, transform: nil)
+            let frame = CTFramesetterCreateFrame(
+                framesetter,
+                CFRange(location: currentIndex, length: 0),
+                path,
+                nil
+            )
+
+            // Core Text draws in a flipped coordinate system relative to PDF
             context.saveGState()
-            context.translateBy(x: margin, y: pageHeight - margin)
+            context.translateBy(x: 0, y: pageHeight)
             context.scaleBy(x: 1.0, y: -1.0)
-
-            layoutManager.drawGlyphs(forGlyphRange: glyphRange, at: .zero)
-
+            CTFrameDraw(frame, context)
             context.restoreGState()
-            context.endPage()
 
-            currentLocation = NSMaxRange(glyphRange)
-        }
+            // Advance past the characters that fit on this page
+            let visibleRange = CTFrameGetVisibleStringRange(frame)
+            if visibleRange.length == 0 { break }
+            currentIndex += visibleRange.length
 
-        // If no pages were created, create at least one
-        if currentLocation == 0 {
-            context.beginPage(mediaBox: &mediaBox)
             context.endPage()
         }
 

@@ -49,13 +49,6 @@ struct DURAApp: App {
         .modelContainer(sharedModelContainer)
 
         #if os(macOS)
-        Window("Kanban Board", id: "kanban") {
-            KanbanWindowView()
-                .preferredColorScheme(.dark)
-        }
-        .modelContainer(sharedModelContainer)
-        .defaultSize(width: 1200, height: 700)
-
         Settings {
             SettingsView()
                 .preferredColorScheme(.dark)

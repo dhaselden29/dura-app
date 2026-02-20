@@ -7,10 +7,6 @@ struct ContentView: View {
     @State private var sidebarSelection: SidebarItem? = .allNotes
     @State private var dataService: DataService?
 
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #endif
-
     var body: some View {
         Group {
             if let dataService {
@@ -21,7 +17,10 @@ struct ContentView: View {
                     )
                 } content: {
                     if sidebarSelection == .kanban {
-                        kanbanPlaceholder
+                        KanbanBoardView(
+                            selectedNote: $selectedNote,
+                            dataService: dataService
+                        )
                     } else {
                         NoteListContentView(
                             selectedNote: $selectedNote,
@@ -30,16 +29,14 @@ struct ContentView: View {
                         )
                     }
                 } detail: {
-                    if sidebarSelection != .kanban {
-                        if let selectedNote {
-                            NoteDetailView(note: selectedNote, dataService: dataService)
-                        } else {
-                            ContentUnavailableView(
-                                "Select a Note",
-                                systemImage: "doc.text",
-                                description: Text("Choose a note from the list or create a new one.")
-                            )
-                        }
+                    if let selectedNote {
+                        NoteDetailView(note: selectedNote, dataService: dataService)
+                    } else {
+                        ContentUnavailableView(
+                            "Select a Note",
+                            systemImage: "doc.text",
+                            description: Text("Choose a note from the list or create a new one.")
+                        )
                     }
                 }
             } else {
@@ -51,32 +48,6 @@ struct ContentView: View {
                 dataService = DataService(modelContext: modelContext)
             }
         }
-    }
-
-    @ViewBuilder
-    private var kanbanPlaceholder: some View {
-        #if os(macOS)
-        ContentUnavailableView {
-            Label("Kanban Board", systemImage: "rectangle.split.3x1")
-        } description: {
-            Text("The Kanban board opens in its own window for a better workspace experience.")
-        } actions: {
-            Button("Open Kanban Board") {
-                openWindow(id: "kanban")
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .onAppear {
-            openWindow(id: "kanban")
-        }
-        #else
-        if let dataService {
-            KanbanBoardView(
-                selectedNote: $selectedNote,
-                dataService: dataService
-            )
-        }
-        #endif
     }
 }
 
