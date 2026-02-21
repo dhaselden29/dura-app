@@ -39,6 +39,35 @@ let previewContainer: ModelContainer = {
     let tag = Tag(name: "swift", color: "#F05138")
     container.mainContext.insert(tag)
 
+    let readingTag = Tag(name: "reading", color: "#007AFF")
+    container.mainContext.insert(readingTag)
+
+    let aiTag = Tag(name: "ai", color: "#AF52DE")
+    container.mainContext.insert(aiTag)
+
+    // Sample bookmarks
+    let bookmark1 = Bookmark(
+        url: "https://developer.apple.com/documentation/swiftdata",
+        title: "SwiftData Documentation"
+    )
+    bookmark1.tags = [tag]
+    container.mainContext.insert(bookmark1)
+
+    let bookmark2 = Bookmark(
+        url: "https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift",
+        title: "The Power of Key Paths in Swift"
+    )
+    bookmark2.tags = [tag, readingTag]
+    container.mainContext.insert(bookmark2)
+
+    let bookmark3 = Bookmark(
+        url: "https://openai.com/blog",
+        title: ""
+    )
+    bookmark3.isRead = true
+    bookmark3.tags = [aiTag]
+    container.mainContext.insert(bookmark3)
+
     // Sample podcast clips
     let resolvedClip = PodcastClip(
         episodeTitle: "Understanding Swift Concurrency",

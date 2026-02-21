@@ -261,6 +261,16 @@ final class DataService: @unchecked Sendable {
         bookmark.isRead.toggle()
     }
 
+    func addTag(_ tag: Tag, to bookmark: Bookmark) {
+        if bookmark.tags == nil { bookmark.tags = [] }
+        guard !(bookmark.tags?.contains(where: { $0.id == tag.id }) ?? false) else { return }
+        bookmark.tags?.append(tag)
+    }
+
+    func removeTag(_ tag: Tag, from bookmark: Bookmark) {
+        bookmark.tags?.removeAll(where: { $0.id == tag.id })
+    }
+
     func deleteBookmark(_ bookmark: Bookmark) {
         modelContext.delete(bookmark)
     }
