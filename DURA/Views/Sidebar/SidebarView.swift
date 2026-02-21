@@ -11,6 +11,9 @@ struct SidebarView: View {
     @Query(sort: \Tag.name)
     private var tags: [Tag]
 
+    @Query(filter: #Predicate<Bookmark> { !$0.isRead })
+    private var unreadBookmarks: [Bookmark]
+
     @State private var isAddingNotebook = false
     @State private var newNotebookName = ""
 
@@ -68,6 +71,7 @@ struct SidebarView: View {
                     .tag(SidebarItem.kanban)
                 Label("Reading List", systemImage: "bookmark")
                     .tag(SidebarItem.readingList)
+                    .badge(unreadBookmarks.count)
             }
         }
         .navigationTitle("DURA")

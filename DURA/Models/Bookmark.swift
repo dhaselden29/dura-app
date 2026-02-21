@@ -15,6 +15,14 @@ final class Bookmark {
     @Relationship(inverse: \Tag.bookmarks)
     var tags: [Tag]? = []
 
+    var domain: String {
+        guard let parsed = URL(string: url),
+              let host = parsed.host() else {
+            return url
+        }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
     init(
         url: String = "",
         title: String = "",

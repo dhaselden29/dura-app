@@ -21,6 +21,8 @@ struct ContentView: View {
                             selectedNote: $selectedNote,
                             dataService: dataService
                         )
+                    } else if sidebarSelection == .readingList {
+                        BookmarkListView(dataService: dataService)
                     } else {
                         NoteListContentView(
                             selectedNote: $selectedNote,
