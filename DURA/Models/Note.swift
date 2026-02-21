@@ -26,6 +26,8 @@ final class Note {
     @Relationship(deleteRule: .cascade, inverse: \Attachment.note)
     var attachments: [Attachment]? = []
 
+    var podcastClip: PodcastClip?
+
     // Wikilink references stored as an array of note IDs (serialized).
     // Bidirectional linking resolved at query time.
     var linkedNoteIDs: [String]? = []

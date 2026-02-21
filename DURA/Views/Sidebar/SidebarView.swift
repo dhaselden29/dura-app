@@ -72,6 +72,8 @@ struct SidebarView: View {
                 Label("Reading List", systemImage: "bookmark")
                     .tag(SidebarItem.readingList)
                     .badge(unreadBookmarks.count)
+                Label("Podcast Clips", systemImage: "headphones")
+                    .tag(SidebarItem.podcastClips)
             }
         }
         .navigationTitle("DURA")

@@ -265,6 +265,42 @@ final class DataService: @unchecked Sendable {
         modelContext.delete(bookmark)
     }
 
+    // MARK: - PodcastClip CRUD
+
+    @discardableResult
+    func createPodcastClip(
+        episodeTitle: String,
+        podcastName: String,
+        playbackPosition: Double,
+        clipDuration: Double = 60,
+        artworkData: Data? = nil
+    ) -> PodcastClip {
+        let clip = PodcastClip(
+            episodeTitle: episodeTitle,
+            podcastName: podcastName,
+            playbackPosition: playbackPosition,
+            clipDuration: clipDuration,
+            artworkData: artworkData
+        )
+        modelContext.insert(clip)
+        return clip
+    }
+
+    func fetchPodcastClips(status: ClipProcessingStatus? = nil) throws -> [PodcastClip] {
+        var descriptor = FetchDescriptor<PodcastClip>(
+            sortBy: [SortDescriptor(\.capturedAt, order: .reverse)]
+        )
+        if let status {
+            let raw = status.rawValue
+            descriptor.predicate = #Predicate<PodcastClip> { $0.processingStatusRaw == raw }
+        }
+        return try modelContext.fetch(descriptor)
+    }
+
+    func deletePodcastClip(_ clip: PodcastClip) {
+        modelContext.delete(clip)
+    }
+
     // MARK: - Counts
 
     func noteCount() throws -> Int {

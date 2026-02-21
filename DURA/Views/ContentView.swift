@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var sidebarSelection: SidebarItem? = .allNotes
     @State private var dataService: DataService?
     @State private var clipWatcher: ClipFolderWatcher?
+    @State private var podcastProcessor: PodcastClipProcessor?
 
     var body: some View {
         Group {
@@ -24,6 +25,11 @@ struct ContentView: View {
                         )
                     } else if sidebarSelection == .readingList {
                         BookmarkListView(dataService: dataService)
+                    } else if sidebarSelection == .podcastClips {
+                        PodcastClipsListView(
+                            dataService: dataService,
+                            selectedNote: $selectedNote
+                        )
                     } else {
                         NoteListContentView(
                             selectedNote: $selectedNote,
@@ -53,10 +59,28 @@ struct ContentView: View {
                 let watcher = ClipFolderWatcher(dataService: ds)
                 clipWatcher = watcher
                 watcher.startWatching()
+                podcastProcessor = PodcastClipProcessor(dataService: ds)
             }
         }
         .onDisappear {
             clipWatcher?.stopWatching()
+        }
+        .toolbar {
+            #if os(macOS)
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    if let processor = podcastProcessor {
+                        Task {
+                            let duration = UserDefaults.standard.double(forKey: "podcastClipDuration")
+                            await processor.capture(clipDuration: duration > 0 ? duration : 60)
+                        }
+                    }
+                } label: {
+                    Label("Capture Podcast Clip", systemImage: "headphones")
+                }
+                .keyboardShortcut("p", modifiers: [.command, .shift])
+            }
+            #endif
         }
     }
 }
@@ -70,6 +94,7 @@ enum SidebarItem: Hashable {
     case drafts
     case kanban
     case readingList
+    case podcastClips
     case notebook(Notebook)
     case tag(Tag)
 
@@ -81,6 +106,7 @@ enum SidebarItem: Hashable {
         case .drafts: "Drafts"
         case .kanban: "Kanban Board"
         case .readingList: "Reading List"
+        case .podcastClips: "Podcast Clips"
         case .notebook(let nb): nb.name
         case .tag(let tag): tag.name
         }
@@ -94,6 +120,7 @@ enum SidebarItem: Hashable {
         case .drafts: "doc.text"
         case .kanban: "rectangle.split.3x1"
         case .readingList: "bookmark"
+        case .podcastClips: "headphones"
         case .notebook(let nb): nb.icon ?? "folder"
         case .tag: "tag"
         }
@@ -117,6 +144,11 @@ struct SettingsView: View {
             WordPressSettingsView()
                 .tabItem {
                     Label("WordPress", systemImage: "globe")
+                }
+
+            PodcastClipsSettingsView()
+                .tabItem {
+                    Label("Podcasts", systemImage: "headphones")
                 }
         }
         .frame(width: 500, height: 400)

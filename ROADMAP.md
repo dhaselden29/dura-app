@@ -99,7 +99,8 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `Attachment.swift` | `Attachment` (@Model) | File storage with `.externalStorage` for data. OCR text field |
 | `Bookmark.swift` | `Bookmark` (@Model) | Reading list items. URL, title, excerpt, read status |
 | `DraftMetadata.swift` | `DraftStatus` (enum), `DraftMetadata` (struct) | WordPress fields: postId, status, slug, excerpt, categories, tags, dates |
-| `ImportSource.swift` | `ImportSource` (enum) | 13 source types (manual, markdown, pdf, docx, image, web, etc.) |
+| `ImportSource.swift` | `ImportSource` (enum) | 14 source types (manual, markdown, pdf, docx, image, web, podcast, etc.) |
+| `PodcastClip.swift` | `PodcastClip` (@Model), `ClipProcessingStatus` (enum) | Podcast clip capture with processing pipeline status |
 | `KanbanStatus.swift` | `KanbanStatus` (enum) | 7 statuses: none, note, idea, researching, drafting, review, published. `boardStatuses` excludes `.none` |
 | `NoteTransferID.swift` | `NoteTransferID` | Lightweight Transferable for Kanban drag-and-drop |
 
@@ -122,6 +123,18 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `PDFImportProvider.swift` | `PDFImportProvider` | Text layer extraction + Vision OCR fallback. Multi-page |
 | `DocxImportProvider.swift` | `DocxImportProvider` | NSAttributedString with OOXML document type |
 | `ImageImportProvider.swift` | `ImageImportProvider` | Vision OCR. PNG, JPEG, HEIC, TIFF, BMP, GIF |
+
+### Podcast (`DURA/Services/Podcast/`)
+
+| File | Types | Purpose |
+|------|-------|---------|
+| `MediaRemoteBridge.h/.m` | `MediaRemoteBridge` (Obj-C) | Private MediaRemote framework bridge via dlopen/dlsym |
+| `DURA-Bridging-Header.h` | — | Swift↔Obj-C bridging header |
+| `NowPlayingService.swift` | `NowPlayingInfo`, `NowPlayingService` | Reads system now-playing info (swap point for App Store) |
+| `PodcastResolverService.swift` | `PodcastResolverService` | iTunes Search API + RSS feed episode resolution |
+| `RSSFeedParser.swift` | `RSSEpisode`, `RSSFeedParser` | XMLParserDelegate-based RSS feed parser |
+| `AudioSegmentExporter.swift` | `AudioSegmentExporter` | AVFoundation audio segment extraction |
+| `PodcastClipProcessor.swift` | `PodcastClipProcessor` (@MainActor @Observable) | Full pipeline orchestrator: capture → resolve → extract → transcribe → note |
 
 ### Clip Watcher (`DURA/Services/`)
 
@@ -161,7 +174,7 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 
 | File | Types | Purpose |
 |------|-------|---------|
-| `ContentView.swift` | `ContentView`, `SidebarItem`, `SettingsView`, `GeneralSettingsView` | Root 3-column NavigationSplitView. macOS Settings with General + WordPress tabs |
+| `ContentView.swift` | `ContentView`, `SidebarItem`, `SettingsView`, `GeneralSettingsView` | Root 3-column NavigationSplitView. macOS Settings with General + WordPress + Podcasts tabs |
 | **Sidebar/** | | |
 | `SidebarView.swift` | `SidebarView` | Library, Notebooks (hierarchical), Tags, Workflow sections. Add notebook inline |
 | **NoteList/** | | |
@@ -180,8 +193,12 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `KanbanBoardView.swift` | `KanbanBoardView` | Horizontal scrolling columns. Drag-and-drop cards |
 | `KanbanColumnView.swift` | `KanbanColumnView` | Collapsible column with header, count badge, drop zone |
 | `KanbanCardView.swift` | `KanbanCardView` | Compact card. Selection/connection highlighting. Context menu |
+| **PodcastClips/** | | |
+| `PodcastClipsListView.swift` | `PodcastClipsListView` | Filterable list of podcast clips. Search, status filter, swipe delete |
+| `PodcastClipRowView.swift` | `PodcastClipRowView` | Row with artwork, title, timestamp, status badge |
 | **Settings/** | | |
 | `WordPressSettingsView.swift` | `WordPressSettingsView` | Site URL, username, app password. Test/Save/Clear. Keychain backed |
+| `PodcastClipsSettingsView.swift` | `PodcastClipsSettingsView` | Enable toggle, clip duration picker, shortcut display |
 
 ### Tests (`DURATests/`)
 
@@ -216,6 +233,8 @@ Notebook ◄──── 1:N ────► Note ◄──── N:M ───�
    │                       │                     │
    └─ parent/child (self)  ├─ 1:N ─► Attachment  └─ N:M ─► Bookmark
                            │
+                           ├─ 0:1 ─► PodcastClip
+                           │
                            └─ embedded: DraftMetadata (JSON)
                               embedded: KanbanStatus (raw string)
                               embedded: ImportSource (raw string)
@@ -226,7 +245,7 @@ Notebook ◄──── 1:N ────► Note ◄──── N:M ───�
 
 Models registered in `DURAApp.swift`:
 ```swift
-Schema([Note.self, Notebook.self, Tag.self, Attachment.self, Bookmark.self])
+Schema([Note.self, Notebook.self, Tag.self, Attachment.self, Bookmark.self, PodcastClip.self])
 ```
 
 Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
@@ -362,55 +381,110 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 - [ ] Tag bookmarks from UI
 - [ ] Open bookmark in browser
 
-### Phase 3: Audio Input & Import Enhancements ← NEXT
-> **Status:** Planned. Implementation order below.
+### Phase 3: Audio Input & Import Enhancements ✅
+> **Status:** Completed.
 
 #### 3a. Audio File Import + Playback
-- [ ] Create `AudioImportProvider` — support MP3, M4A, WAV, AIFF, AAC via UTTypes
-- [ ] Wire `AVPlayer` playback into existing `AudioBlockView` stub (play/pause/seek)
-- [ ] Store audio files as `Attachment` with `.externalStorage`
-- [ ] Add `ImportSource.audio` case to `ImportSource` enum
-- [ ] Register audio UTTypes in `ImportService` provider lookup
-- [ ] Enable drag-and-drop of audio files onto note list
+- [x] Create `AudioImportProvider` — support MP3, M4A, WAV, AIFF, AAC via UTTypes
+- [x] Wire `AVPlayer` playback into existing `AudioBlockView` stub (play/pause/seek)
+- [x] Store audio files as `Attachment` with `.externalStorage`
+- [x] Add `ImportSource.audio` case to `ImportSource` enum
+- [x] Register audio UTTypes in `ImportService` provider lookup
+- [x] Enable drag-and-drop of audio files onto note list
 
 #### 3b. Voice Note Recording
-- [ ] Add microphone permission (`NSMicrophoneUsageDescription` in Info.plist)
-- [ ] Create `VoiceRecorderView` — record button, waveform visualization, stop/save
-- [ ] Use `AVAudioRecorder` to capture M4A audio
-- [ ] On save: create new note with audio block + attachment
-- [ ] Add recording entry point in toolbar or note list
+- [x] Add microphone permission (`NSMicrophoneUsageDescription` in Info.plist)
+- [x] Create `VoiceRecorderView` — record button, waveform visualization, stop/save
+- [x] Use `AVAudioRecorder` to capture M4A audio
+- [x] On save: create new note with audio block + attachment
+- [x] Add recording entry point in toolbar or note list
 
 #### 3c. On-Device Speech-to-Text Transcription
-- [ ] Integrate `SFSpeechRecognizer` for on-device transcription (macOS 15+ / iOS 18+)
-- [ ] Add `Speech` framework and `NSSpeechRecognitionUsageDescription` permission
-- [ ] Post-recording transcription: audio → text inserted as note body below audio block
-- [ ] Progress indicator during transcription
-- [ ] Fallback handling when on-device recognition unavailable
+- [x] Integrate `SFSpeechRecognizer` for on-device transcription (macOS 15+ / iOS 18+)
+- [x] Add `Speech` framework and `NSSpeechRecognitionUsageDescription` permission
+- [x] Post-recording transcription: audio → text inserted as note body below audio block
+- [x] Progress indicator during transcription
+- [x] Fallback handling when on-device recognition unavailable
 
 #### 3d. Expand ClipFolderWatcher
-- [ ] Watch all supported import types (PDF, DOCX, RTF, TXT, images, audio) not just `.md`
-- [ ] Configure watched extensions in settings
-- [ ] Show watcher status and recent imports in UI
+- [x] Watch all supported import types (PDF, DOCX, RTF, TXT, images, audio) not just `.md`
+- [x] Configure watched extensions in settings
+- [x] Show watcher status and recent imports in UI
 
 #### 3e. HTML Import
-- [ ] Create `HTMLImportProvider` — support `.html` and `.htm` files
-- [ ] Extract main content (strip nav, footer, scripts) or use full body
-- [ ] Convert HTML → Markdown (similar to dura-clipper's Turndown approach, server-side)
-- [ ] Register `.html` UTType in `ImportService`
+- [x] Create `HTMLImportProvider` — support `.html` and `.htm` files
+- [x] Extract main content (strip nav, footer, scripts) or use full body
+- [x] Convert HTML → Markdown (similar to dura-clipper's Turndown approach, server-side)
+- [x] Register `.html` UTType in `ImportService`
 
 #### 3f. EPUB Import
-- [ ] Create `EPUBImportProvider` — parse EPUB (zipped XHTML)
-- [ ] Extract text content and inline images from EPUB chapters
-- [ ] Convert XHTML → Markdown, concatenate chapters with `## Chapter` headings
-- [ ] Register `UTType(filenameExtension: "epub")` in `ImportService`
+- [x] Create `EPUBImportProvider` — parse EPUB (zipped XHTML)
+- [x] Extract text content and inline images from EPUB chapters
+- [x] Convert XHTML → Markdown, concatenate chapters with `## Chapter` headings
+- [x] Register `UTType(filenameExtension: "epub")` in `ImportService`
 
-#### Audio Infrastructure Notes
-- `BlockType.audio` already exists with `displayName: "Audio"`, `iconName: "waveform"`
-- `AudioBlockView` has UI shell (filename + play icon) but **no AVPlayer** — needs wiring
-- `BlockParser` serializes audio as `🔊 [filename](url)` — no reverse parsing yet
-- `HTMLExportProvider` renders `<audio controls><source src="..."></audio>`
-- `Block.metadata` stores `"filename"` and content stores the URL/path
-- No `AVFoundation` import exists anywhere in the codebase currently
+### Phase 3.5: Podcast Clips ← CURRENT
+> **Status:** Implemented. Captures now-playing info from Apple Podcasts (or any audio app),
+> resolves episode metadata via iTunes Search + RSS, extracts audio segments, and transcribes
+> into linked notes.
+
+> ⚠️ **APP STORE WARNING — Private API Usage**
+>
+> `NowPlayingService` uses the private `MediaRemote` framework via
+> `DURA/Services/Podcast/MediaRemoteBridge.m` to read other apps' now-playing
+> state. This WILL be rejected by App Store review.
+>
+> **To make App Store compatible:**
+> 1. Replace `MediaRemoteBridge.h/.m` with a manual-entry UI or share-link parser
+> 2. Update `NowPlayingService.getCurrentlyPlaying()` to use the new input method
+> 3. Remove bridging header reference from `project.yml`
+> 4. Everything downstream (PodcastClip model, processor, UI) stays unchanged
+
+#### Features
+- [x] `PodcastClip` SwiftData model with processing status pipeline
+- [x] MediaRemote bridge (Obj-C) for reading system now-playing info
+- [x] `NowPlayingService` — Swift wrapper (single swap point for App Store)
+- [x] `PodcastResolverService` — iTunes Search API + RSS feed resolution
+- [x] `RSSFeedParser` — XMLParser-based RSS episode extraction
+- [x] `AudioSegmentExporter` — AVFoundation segment extraction (position ± duration/2)
+- [x] `PodcastClipProcessor` — full pipeline: capture → resolve → extract → transcribe → note
+- [x] `PodcastClipsListView` — filterable list (All/Pending/Resolved/Failed)
+- [x] `PodcastClipRowView` — artwork, title, timestamp, status badge
+- [x] `PodcastClipsSettingsView` — enable toggle, clip duration, shortcut display
+- [x] Sidebar integration in Workflow section
+- [x] Keyboard shortcut: ⌘⇧P to capture clip
+- [x] `ImportSource.podcast` case added
+- [x] `Note.podcastClip` relationship
+
+#### New Files (12)
+| File | Purpose |
+|------|---------|
+| `DURA/Models/PodcastClip.swift` | SwiftData model + `ClipProcessingStatus` enum |
+| `DURA/Services/Podcast/MediaRemoteBridge.h` | Obj-C header for private MediaRemote API |
+| `DURA/Services/Podcast/MediaRemoteBridge.m` | Obj-C implementation — dlopen/dlsym |
+| `DURA/Services/Podcast/DURA-Bridging-Header.h` | Swift↔Obj-C bridging header |
+| `DURA/Services/Podcast/NowPlayingService.swift` | Swift async wrapper around MediaRemoteBridge |
+| `DURA/Services/Podcast/PodcastResolverService.swift` | iTunes Search + RSS resolution |
+| `DURA/Services/Podcast/RSSFeedParser.swift` | XMLParserDelegate RSS feed parser |
+| `DURA/Services/Podcast/AudioSegmentExporter.swift` | AVFoundation audio segment extraction |
+| `DURA/Services/Podcast/PodcastClipProcessor.swift` | Pipeline orchestrator |
+| `DURA/Views/PodcastClips/PodcastClipsListView.swift` | Podcast clips list view |
+| `DURA/Views/PodcastClips/PodcastClipRowView.swift` | Podcast clip row view |
+| `DURA/Views/Settings/PodcastClipsSettingsView.swift` | Podcast settings tab |
+
+#### Modified Files (10)
+| File | Change |
+|------|--------|
+| `DURA/Models/Note.swift` | Added `podcastClip: PodcastClip?` relationship |
+| `DURA/Models/ImportSource.swift` | Added `.podcast` case |
+| `DURA/App/DURAApp.swift` | Added `PodcastClip.self` to schema |
+| `DURA/Services/DataService.swift` | Added PodcastClip CRUD methods |
+| `DURA/Views/ContentView.swift` | Added `.podcastClips` sidebar item, routing, settings tab, ⌘⇧P shortcut |
+| `DURA/Views/Sidebar/SidebarView.swift` | Added Podcast Clips to Workflow section |
+| `DURA/Views/NoteList/NoteListContentView.swift` | Handle `.podcastClips` in sidebar filter |
+| `DURA/Resources/Preview Content/PreviewSampleData.swift` | Sample PodcastClip instances |
+| `project.yml` | Bridging header path for both targets |
+| `ROADMAP.md` | Phase 3 completed, Phase 3.5 documented |
 
 ### Phase 4: Wikilinks & Note Graph
 - [ ] Parse `[[note title]]` syntax in markdown
@@ -483,7 +557,7 @@ Or build and run from Xcode directly.
 2. **Note.body** is always markdown — blocks are derived, never stored
 3. **Import/Export** follow identical provider patterns — check `ImportProvider.swift` and `ExportProvider.swift` for the protocols
 4. **DraftMetadata** is JSON embedded in Note — presence = isDraft
-5. **DataService** is the single CRUD gateway for all SwiftData operations
+5. **DataService** is the single CRUD gateway for all SwiftData operations (Notes, Notebooks, Tags, Attachments, Bookmarks, PodcastClips)
 6. **Tests use Swift Testing** — `@Test`, `#expect`, `@Suite`, `Issue.record()`
 7. **ClipFolderWatcher** auto-imports `.md` files from `~/Downloads/DURA-Clips/` via FSEvents
 8. **dura-clipper/** is a Chrome extension that clips web pages to markdown with YAML front matter
@@ -510,18 +584,16 @@ Or build and run from Xcode directly.
 - **Wire audio playback:** `AudioBlockView` in `BlockViews.swift` has the UI shell. Needs `AVPlayer` wired to the play button. Audio URL is in `block.content`, filename in `block.metadata["filename"]`
 
 ### What's NOT Working / Incomplete
-- **Audio blocks** — `BlockType.audio` exists, `AudioBlockView` renders a static UI, but no playback (`AVPlayer`), no audio import provider, no recording, no transcription. This is the **next implementation target** (Phase 3).
 - Reading List has partial UI (model + sidebar) but limited functionality
 - Wikilinks have no implementation (field only)
 - CloudKit sync is disabled
 - WordPress.com not supported (only self-hosted WP with Application Passwords; WordPress.com needs OAuth2)
 - Block editor is read-only preview; editing is raw markdown
+- Podcast clip MediaRemote bridge uses private API (personal use only — see App Store warning in roadmap)
 
-### Next Up: Phase 3 — Audio Input & Import Enhancements
-The immediate next work is Phase 3 (see roadmap above). Implementation order:
-1. **3a** Audio file import provider + wire AVPlayer playback into AudioBlockView
-2. **3b** Voice note recording (AVAudioRecorder + mic permission)
-3. **3c** On-device speech-to-text (SFSpeechRecognizer)
-4. **3d** Expand ClipFolderWatcher to all file types
-5. **3e** HTML import provider
-6. **3f** EPUB import provider
+### Next Up: Phase 4 — Wikilinks & Note Graph
+The immediate next work is Phase 4 (see roadmap above). Implementation order:
+1. Parse `[[note title]]` syntax in markdown
+2. Resolve wikilinks to note IDs bidirectionally
+3. Backlinks panel in NoteDetailView
+4. Note graph visualization

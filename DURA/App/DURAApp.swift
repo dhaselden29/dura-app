@@ -9,7 +9,8 @@ struct DURAApp: App {
             Notebook.self,
             Tag.self,
             Attachment.self,
-            Bookmark.self
+            Bookmark.self,
+            PodcastClip.self
         ])
 
         let isTestEnvironment = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil

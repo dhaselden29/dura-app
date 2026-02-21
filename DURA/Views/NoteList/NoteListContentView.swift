@@ -170,7 +170,7 @@ struct NoteListContentView: View {
             notes = notes.filter { note in
                 note.tags?.contains(where: { $0.id == tag.id }) ?? false
             }
-        case .kanban, .readingList:
+        case .kanban, .readingList, .podcastClips:
             break
         }
 

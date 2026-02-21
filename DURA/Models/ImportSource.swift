@@ -16,6 +16,7 @@ enum ImportSource: String, Codable, CaseIterable, Identifiable {
     case rtf
     case image
     case audio
+    case podcast
 
     var id: String { rawValue }
 
@@ -35,6 +36,7 @@ enum ImportSource: String, Codable, CaseIterable, Identifiable {
         case .rtf: "RTF"
         case .image: "Image"
         case .audio: "Audio"
+        case .podcast: "Podcast"
         }
     }
 }
