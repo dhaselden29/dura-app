@@ -23,3 +23,6 @@ backups/
 
 # Claude Code
 .claude/
+
+# Internal documentation (not for distribution)
+ROADMAP.md
