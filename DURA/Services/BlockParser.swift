@@ -47,6 +47,13 @@ struct BlockParser {
                 continue
             }
 
+            // Audio (🔊 [filename](url))
+            if let audioBlock = parseAudio(line) {
+                blocks.append(audioBlock)
+                index += 1
+                continue
+            }
+
             // Checklist (- [ ] or - [x])
             if isChecklistItem(line) {
                 let result = parseChecklist(lines: lines, startIndex: index)
@@ -194,6 +201,17 @@ struct BlockParser {
         let alt = String(match.output.1)
         let url = String(match.output.2)
         return Block(type: .image, content: alt, metadata: ["url": url])
+    }
+
+    private static func parseAudio(_ line: String) -> Block? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        // Match 🔊 [filename](url)
+        let pattern = /^🔊\s*\[([^\]]+)\]\(([^)]+)\)$/
+        guard let match = trimmed.firstMatch(of: pattern) else { return nil }
+
+        let filename = String(match.output.1)
+        let url = String(match.output.2)
+        return Block(type: .audio, content: url, metadata: ["filename": filename])
     }
 
     private static func isDivider(_ line: String) -> Bool {
@@ -369,6 +387,7 @@ struct BlockParser {
             if isNumberedListItem(line) { break }
             if isChecklistItem(line) { break }
             if parseImage(line) != nil { break }
+            if parseAudio(line) != nil { break }
 
             paragraphLines.append(line)
             idx += 1

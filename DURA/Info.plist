@@ -44,6 +44,10 @@
 			<dict/>
 		</dict>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DURA needs microphone access to record voice notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>DURA uses on-device speech recognition to transcribe your voice notes.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

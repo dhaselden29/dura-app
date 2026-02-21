@@ -1,4 +1,6 @@
 import SwiftUI
+import AVFoundation
+import Combine
 
 // MARK: - Block Row (Dispatcher)
 
@@ -10,6 +12,7 @@ struct BlockRowView: View {
     let onContentChange: (String) -> Void
     let onDelete: () -> Void
     let onReturn: () -> Void
+    var attachments: [Attachment]?
 
     @Environment(\.isBlockPreview) private var isBlockPreview
 
@@ -104,7 +107,8 @@ struct BlockRowView: View {
         case .audio:
             AudioBlockView(
                 filename: block.metadata?["filename"] ?? "Audio",
-                url: block.content
+                url: block.content,
+                attachmentData: attachments?.first(where: { $0.filename == block.metadata?["filename"] })?.data
             )
         }
     }
@@ -450,26 +454,176 @@ struct EmbedBlockView: View {
 
 // MARK: - Audio
 
+@MainActor
+@Observable
+final class AudioPlayerState {
+    var isPlaying = false
+    var currentTime: TimeInterval = 0
+    var duration: TimeInterval = 0
+
+    private var player: AVPlayer?
+    private var timeObserverToken: Any?
+
+    func loadIfNeeded(url: URL) {
+        guard player == nil else { return }
+        let item = AVPlayerItem(url: url)
+        player = AVPlayer(playerItem: item)
+        // Observe duration
+        let itemDuration = item.asset.duration.seconds
+        if itemDuration.isFinite {
+            duration = itemDuration
+        }
+        // Periodic time observer
+        let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
+        timeObserverToken = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            Task { @MainActor in
+                guard let self else { return }
+                self.currentTime = time.seconds
+                if let dur = self.player?.currentItem?.duration.seconds, dur.isFinite {
+                    self.duration = dur
+                }
+            }
+        }
+        // Observe end of playback
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.isPlaying = false
+                self?.player?.seek(to: .zero)
+                self?.currentTime = 0
+            }
+        }
+    }
+
+    func togglePlayback() {
+        guard let player else { return }
+        if isPlaying {
+            player.pause()
+        } else {
+            player.play()
+        }
+        isPlaying.toggle()
+    }
+
+    func seek(to fraction: Double) {
+        guard let player, duration > 0 else { return }
+        let target = CMTime(seconds: fraction * duration, preferredTimescale: 600)
+        player.seek(to: target)
+        currentTime = fraction * duration
+    }
+
+    func cleanup() {
+        if let token = timeObserverToken {
+            player?.removeTimeObserver(token)
+            timeObserverToken = nil
+        }
+        player = nil
+    }
+}
+
 struct AudioBlockView: View {
     let filename: String
     let url: String
+    var attachmentData: Data?
+
+    @State private var playerState = AudioPlayerState()
+    @State private var tempFileURL: URL?
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "waveform")
-                .foregroundStyle(.tint)
-            Text(filename)
-                .font(.body)
-            Spacer()
-            Image(systemName: "play.circle")
-                .font(.title3)
-                .foregroundStyle(.tint)
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Button {
+                    loadAndToggle()
+                } label: {
+                    Image(systemName: playerState.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.tint)
+                }
+                .buttonStyle(.plain)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(filename)
+                        .font(.subheadline)
+                        .lineLimit(1)
+
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(.fill.tertiary)
+                                .frame(height: 4)
+
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(.tint)
+                                .frame(width: geo.size.width * progress, height: 4)
+                        }
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    let fraction = max(0, min(1, value.location.x / geo.size.width))
+                                    playerState.seek(to: fraction)
+                                }
+                        )
+                    }
+                    .frame(height: 4)
+                }
+
+                Text(timeString(playerState.currentTime))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Text("/")
+                    .font(.caption)
+                    .foregroundStyle(.quaternary)
+                Text(timeString(playerState.duration))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.fill.quinary)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .padding(.vertical, 4)
+    }
+
+    private var progress: Double {
+        guard playerState.duration > 0 else { return 0 }
+        return playerState.currentTime / playerState.duration
+    }
+
+    private func loadAndToggle() {
+        if tempFileURL == nil, let resolvedURL = resolveURL() {
+            playerState.loadIfNeeded(url: resolvedURL)
+        }
+        playerState.togglePlayback()
+    }
+
+    private func resolveURL() -> URL? {
+        // If we have attachment data, write to a temp file
+        if let data = attachmentData {
+            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            if !FileManager.default.fileExists(atPath: tmp.path) {
+                try? data.write(to: tmp)
+            }
+            tempFileURL = tmp
+            return tmp
+        }
+        // Otherwise try as a regular URL
+        if !url.hasPrefix("attachment://"), let fileURL = URL(string: url) {
+            tempFileURL = fileURL
+            return fileURL
+        }
+        return nil
+    }
+
+    private func timeString(_ time: TimeInterval) -> String {
+        guard time.isFinite, time >= 0 else { return "0:00" }
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return "\(minutes):\(String(format: "%02d", seconds))"
     }
 }
 

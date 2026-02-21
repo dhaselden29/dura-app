@@ -16,6 +16,7 @@ struct NoteListContentView: View {
     @State private var importProgress: Double?
     @State private var importError: ImportError?
     @State private var showImportError = false
+    @State private var showVoiceRecorder = false
 
     var body: some View {
         List(filteredNotes, selection: $selectedNote) { note in
@@ -67,6 +68,12 @@ struct NoteListContentView: View {
                 .keyboardShortcut("i", modifiers: [.command, .shift])
             }
 
+            ToolbarItem(placement: .primaryAction) {
+                Button { showVoiceRecorder = true } label: {
+                    Label("Record Voice Note", systemImage: "mic.circle")
+                }
+            }
+
             ToolbarItem(placement: .automatic) {
                 Menu {
                     ForEach(NoteSortOrder.allCases) { order in
@@ -88,7 +95,7 @@ struct NoteListContentView: View {
         }
         .fileImporter(
             isPresented: $showFileImporter,
-            allowedContentTypes: [.pdf, .plainText, .markdown, .rtf, .rtfd, .image, UTType("org.openxmlformats.wordprocessingml.document")!],
+            allowedContentTypes: [.pdf, .plainText, .markdown, .rtf, .rtfd, .image, UTType("org.openxmlformats.wordprocessingml.document")!, .mp3, .mpeg4Audio, .wav, UTType("public.aiff-audio")!, UTType("public.aac-audio")!, UTType("public.html")!, UTType(filenameExtension: "epub")!],
             allowsMultipleSelection: false
         ) { result in
             switch result {
@@ -113,6 +120,11 @@ struct NoteListContentView: View {
                 Text(error.localizedDescription)
             }
         }
+        .sheet(isPresented: $showVoiceRecorder) {
+            VoiceRecorderView(dataService: dataService) { note in
+                selectedNote = note
+            }
+        }
         .overlay {
             if filteredNotes.isEmpty {
                 if searchText.isEmpty {
@@ -129,7 +141,7 @@ struct NoteListContentView: View {
         #if os(macOS)
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
-            let supportedExtensions = ["pdf", "txt", "md", "markdown", "rtf", "rtfd", "docx", "png", "jpg", "jpeg", "heic", "tiff"]
+            let supportedExtensions = ["pdf", "txt", "md", "markdown", "rtf", "rtfd", "docx", "png", "jpg", "jpeg", "heic", "tiff", "mp3", "m4a", "wav", "aiff", "aif", "aac", "html", "htm", "epub"]
             guard supportedExtensions.contains(url.pathExtension.lowercased()) else { return false }
             performImport(url: url)
             return true

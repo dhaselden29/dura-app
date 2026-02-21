@@ -19,6 +19,9 @@ final class ImportService {
             PDFImportProvider(),
             DocxImportProvider(),
             ImageImportProvider(),
+            AudioImportProvider(),
+            HTMLImportProvider(),
+            EPUBImportProvider(),
         ]
 
         var lookup: [UTType: any ImportProvider] = [:]

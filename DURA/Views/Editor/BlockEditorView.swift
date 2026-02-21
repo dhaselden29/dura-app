@@ -38,7 +38,8 @@ struct BlockEditorView: View {
                         onTap: {},
                         onContentChange: { _ in },
                         onDelete: {},
-                        onReturn: {}
+                        onReturn: {},
+                        attachments: nil
                     )
                 }
             }

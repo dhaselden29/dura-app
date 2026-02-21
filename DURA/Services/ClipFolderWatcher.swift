@@ -26,6 +26,15 @@ final class ClipFolderWatcher {
     /// Files currently being processed (to avoid double-import).
     @ObservationIgnored private var inflight: Set<String> = []
 
+    static let watchedExtensions: Set<String> = [
+        "md", "txt", "rtf",
+        "pdf", "docx",
+        "png", "jpg", "jpeg", "heic", "tiff", "gif", "bmp",
+        "mp3", "m4a", "wav", "aiff", "aac",
+        "html", "htm",
+        "epub",
+    ]
+
     init(dataService: DataService) {
         self.dataService = dataService
     }
@@ -145,11 +154,11 @@ final class ClipFolderWatcher {
             options: [.skipsHiddenFiles]
         ) else { return }
 
-        let mdFiles = contents.filter { url in
-            url.pathExtension.lowercased() == "md" && !inflight.contains(url.lastPathComponent)
+        let matchingFiles = contents.filter { url in
+            Self.watchedExtensions.contains(url.pathExtension.lowercased()) && !inflight.contains(url.lastPathComponent)
         }
 
-        for fileURL in mdFiles {
+        for fileURL in matchingFiles {
             let filename = fileURL.lastPathComponent
             inflight.insert(filename)
 
@@ -185,8 +194,10 @@ final class ClipFolderWatcher {
             var destination = importedDir.appendingPathComponent(filename)
             if FileManager.default.fileExists(atPath: destination.path) {
                 let stem = filenameStem(filename)
+                let ext = (filename as NSString).pathExtension
                 let timestamp = Int(Date().timeIntervalSince1970)
-                destination = importedDir.appendingPathComponent("\(stem)-\(timestamp).md")
+                let suffix = ext.isEmpty ? "" : ".\(ext)"
+                destination = importedDir.appendingPathComponent("\(stem)-\(timestamp)\(suffix)")
             }
             try FileManager.default.moveItem(at: fileURL, to: destination)
         } catch {
