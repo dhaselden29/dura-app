@@ -11,14 +11,18 @@ struct BlockRowView: View {
     let onDelete: () -> Void
     let onReturn: () -> Void
 
+    @Environment(\.isBlockPreview) private var isBlockPreview
+
     var body: some View {
         HStack(alignment: .top, spacing: 4) {
-            // Drag handle (visible on hover via parent)
-            Image(systemName: "line.3.horizontal")
-                .font(.caption)
-                .foregroundStyle(.quaternary)
-                .frame(width: 16)
-                .padding(.top, topPaddingForType)
+            if !isBlockPreview {
+                // Drag handle (visible on hover via parent)
+                Image(systemName: "line.3.horizontal")
+                    .font(.caption)
+                    .foregroundStyle(.quaternary)
+                    .frame(width: 16)
+                    .padding(.top, topPaddingForType)
+            }
 
             blockContent
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -121,14 +125,21 @@ struct ParagraphBlockView: View {
     let isSelected: Bool
     let onReturn: () -> Void
 
+    @Environment(\.isBlockPreview) private var isBlockPreview
+
     var body: some View {
-        BlockTextField(
-            text: $text,
-            placeholder: "Type something...",
-            font: .body,
-            isSelected: isSelected,
-            onReturn: onReturn
-        )
+        if isBlockPreview {
+            MarkdownText(text: text)
+                .padding(.vertical, 4)
+        } else {
+            BlockTextField(
+                text: $text,
+                placeholder: "Type something...",
+                font: .body,
+                isSelected: isSelected,
+                onReturn: onReturn
+            )
+        }
     }
 }
 
@@ -139,6 +150,8 @@ struct HeadingBlockView: View {
     let level: Int
     let isSelected: Bool
     let onReturn: () -> Void
+
+    @Environment(\.isBlockPreview) private var isBlockPreview
 
     private var font: Font {
         switch level {
@@ -153,13 +166,18 @@ struct HeadingBlockView: View {
     }
 
     var body: some View {
-        BlockTextField(
-            text: $text,
-            placeholder: "Heading \(level)",
-            font: font,
-            isSelected: isSelected,
-            onReturn: onReturn
-        )
+        if isBlockPreview {
+            MarkdownText(text: text, font: font)
+                .padding(.vertical, 4)
+        } else {
+            BlockTextField(
+                text: $text,
+                placeholder: "Heading \(level)",
+                font: font,
+                isSelected: isSelected,
+                onReturn: onReturn
+            )
+        }
     }
 }
 
@@ -181,9 +199,7 @@ struct BulletListBlockView: View {
                         .foregroundStyle(.secondary)
                         .padding(.top, 2)
 
-                    Text(item)
-                        .font(.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    MarkdownText(text: item)
                 }
             }
         }
@@ -210,9 +226,7 @@ struct NumberedListBlockView: View {
                         .monospacedDigit()
                         .padding(.top, 2)
 
-                    Text(item)
-                        .font(.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    MarkdownText(text: item)
                 }
             }
         }
@@ -265,11 +279,9 @@ struct ChecklistBlockView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Text(item)
-                        .font(.body)
+                    MarkdownText(text: item)
                         .strikethrough(checkedIndices.contains(index))
                         .foregroundStyle(checkedIndices.contains(index) ? .secondary : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -289,10 +301,8 @@ struct QuoteBlockView: View {
                 .fill(.tint)
                 .frame(width: 3)
 
-            Text(text)
-                .font(.body.italic())
+            MarkdownText(text: text, font: .body.italic())
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
     }
