@@ -63,15 +63,29 @@ final class ImportService {
             }
         }()
 
+        // Resolve notebook: front matter notebook overrides only when no explicit `into` parameter
+        var targetNotebook = notebook
+        if targetNotebook == nil, let notebookName = result.notebookName, !notebookName.isEmpty {
+            targetNotebook = try findOrCreateNotebook(name: notebookName)
+        }
+
         // Create note
         let note = dataService.createNote(
             title: result.title,
             body: result.body,
             source: result.source,
-            notebook: notebook
+            notebook: targetNotebook
         )
         note.originalFormat = result.mimeType
-        note.sourceURL = url.absoluteString
+        note.sourceURL = result.sourceURL ?? url.absoluteString
+
+        // Apply front matter metadata
+        if let tagNames = result.tagNames, !tagNames.isEmpty {
+            for tagName in tagNames {
+                let tag = try dataService.findOrCreateTag(name: tagName)
+                dataService.addTag(tag, to: note)
+            }
+        }
 
         // Create attachment with original file data
         let attachment = dataService.createAttachment(
@@ -85,6 +99,16 @@ final class ImportService {
         try dataService.save()
 
         return note
+    }
+
+    // MARK: - Notebook Resolution
+
+    private func findOrCreateNotebook(name: String) throws -> Notebook {
+        let notebooks = try dataService.fetchNotebooks()
+        if let existing = notebooks.first(where: { $0.name == name }) {
+            return existing
+        }
+        return dataService.createNotebook(name: name)
     }
 
     // MARK: - Provider Resolution

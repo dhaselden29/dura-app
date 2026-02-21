@@ -1,0 +1,240 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+#app {
+  padding: 16px;
+  position: relative;
+}
+
+header {
+  margin-bottom: 16px;
+}
+
+header h1 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #a78bfa;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+#page-info {
+  background: #16162a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid #2a2a4a;
+}
+
+#page-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #f0f0f0;
+  margin-bottom: 2px;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: #8888aa;
+}
+
+/* Error Banner */
+#error-banner {
+  background: #3d1c1c;
+  border: 1px solid #6b2c2c;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  color: #ff8888;
+  font-size: 12px;
+}
+
+/* Clip Modes */
+#clip-modes {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.radio-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  border-radius: 6px;
+  border: 1px solid #2a2a4a;
+  background: #16162a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 11px;
+  text-align: center;
+}
+
+.radio-label:hover {
+  border-color: #4a4a7a;
+}
+
+.radio-label:has(input:checked) {
+  border-color: #a78bfa;
+  background: #2a2050;
+  color: #d4c4ff;
+}
+
+.radio-label:has(input:disabled) {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.radio-label input {
+  display: none;
+}
+
+/* Metadata Fields */
+#metadata {
+  margin-bottom: 16px;
+}
+
+.field {
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.field label {
+  display: block;
+  font-size: 11px;
+  color: #8888aa;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.field select,
+.field input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  background: #16162a;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field select:focus,
+.field input[type="text"]:focus {
+  border-color: #a78bfa;
+}
+
+.field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888aa' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+/* Tag Suggestions */
+#tag-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #16162a;
+  border: 1px solid #2a2a4a;
+  border-radius: 0 0 6px 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+#tag-suggestions .suggestion {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#tag-suggestions .suggestion:hover {
+  background: #2a2050;
+  color: #d4c4ff;
+}
+
+/* Footer */
+footer {
+  display: flex;
+}
+
+.primary {
+  flex: 1;
+  padding: 10px;
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.primary:hover {
+  background: #6d28d9;
+}
+
+.primary:active {
+  background: #5b21b6;
+}
+
+.primary:disabled {
+  background: #3a3a5a;
+  color: #6a6a8a;
+  cursor: not-allowed;
+}
+
+/* Success Overlay */
+#success-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 26, 46, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  z-index: 20;
+}
+
+#success-overlay .checkmark {
+  font-size: 48px;
+  color: #34d399;
+  margin-bottom: 8px;
+}
+
+#success-overlay div:last-child {
+  font-size: 16px;
+  font-weight: 600;
+  color: #34d399;
+}
+
+/* Utility */
+.hidden {
+  display: none !important;
+}

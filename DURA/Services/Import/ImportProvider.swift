@@ -11,6 +11,13 @@ struct ImportResult: Sendable {
     let originalData: Data
     let mimeType: String
     var ocrText: String?
+
+    // Metadata from YAML front matter (web clips)
+    var sourceURL: String?
+    var excerpt: String?
+    var tagNames: [String]?
+    var notebookName: String?
+    var featuredImageURL: String?
 }
 
 // MARK: - Import Error

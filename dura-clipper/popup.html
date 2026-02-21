@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=360">
+  <link rel="stylesheet" href="popup.css">
+  <title>DURA Clipper</title>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>DURA Clipper</h1>
+      <div id="page-info">
+        <div id="page-title" class="truncate">Loading...</div>
+        <div id="page-domain" class="subtitle"></div>
+      </div>
+    </header>
+
+    <div id="error-banner" class="hidden">
+      <span id="error-text"></span>
+    </div>
+
+    <section id="clip-modes">
+      <label class="radio-label">
+        <input type="radio" name="mode" value="full" checked>
+        <span>Full Article</span>
+      </label>
+      <label class="radio-label">
+        <input type="radio" name="mode" value="selection" id="mode-selection" disabled>
+        <span>Selection Only</span>
+      </label>
+      <label class="radio-label">
+        <input type="radio" name="mode" value="bookmark">
+        <span>Bookmark Only</span>
+      </label>
+    </section>
+
+    <section id="metadata">
+      <div class="field">
+        <label for="notebook-select">Notebook</label>
+        <select id="notebook-select"></select>
+      </div>
+      <div class="field">
+        <label for="tags-input">Tags</label>
+        <input type="text" id="tags-input" placeholder="comma-separated tags">
+        <div id="tag-suggestions" class="hidden"></div>
+      </div>
+    </section>
+
+    <footer>
+      <button id="save-btn" class="primary">Save Clip</button>
+    </footer>
+
+    <div id="success-overlay" class="hidden">
+      <div class="checkmark">&#10003;</div>
+      <div>Saved!</div>
+    </div>
+  </div>
+
+  <script src="lib/turndown.js"></script>
+  <script src="lib/turndown-plugin-gfm.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

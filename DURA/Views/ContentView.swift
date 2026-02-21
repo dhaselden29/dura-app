@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var selectedNote: Note?
     @State private var sidebarSelection: SidebarItem? = .allNotes
     @State private var dataService: DataService?
+    @State private var clipWatcher: ClipFolderWatcher?
 
     var body: some View {
         Group {
@@ -47,8 +48,15 @@ struct ContentView: View {
         }
         .onAppear {
             if dataService == nil {
-                dataService = DataService(modelContext: modelContext)
+                let ds = DataService(modelContext: modelContext)
+                dataService = ds
+                let watcher = ClipFolderWatcher(dataService: ds)
+                clipWatcher = watcher
+                watcher.startWatching()
             }
+        }
+        .onDisappear {
+            clipWatcher?.stopWatching()
         }
     }
 }
@@ -101,6 +109,11 @@ struct SettingsView: View {
                     Label("General", systemImage: "gear")
                 }
 
+            ClipWatcherSettingsView()
+                .tabItem {
+                    Label("Web Clipper", systemImage: "paperclip")
+                }
+
             WordPressSettingsView()
                 .tabItem {
                     Label("WordPress", systemImage: "globe")
@@ -122,6 +135,73 @@ struct GeneralSettingsView: View {
             }
         }
         .padding()
+    }
+}
+
+struct ClipWatcherSettingsView: View {
+    @AppStorage("clipWatchEnabled") private var isEnabled = true
+    @AppStorage("clipWatchFolder") private var folderPath = ""
+
+    var body: some View {
+        Form {
+            Toggle("Auto-import clipped pages", isOn: $isEnabled)
+
+            LabeledContent("Watch folder") {
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(displayPath)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    HStack(spacing: 8) {
+                        Button("Choose Folder...") {
+                            chooseFolder()
+                        }
+
+                        if !folderPath.isEmpty {
+                            Button("Reset to Default") {
+                                folderPath = ""
+                            }
+                        }
+                    }
+                }
+            }
+
+            LabeledContent("How it works") {
+                Text("New .md files saved to this folder by DURA Clipper are automatically imported. After import, files move to a hidden .imported subfolder.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: 300, alignment: .leading)
+            }
+
+            Button("Open Watch Folder in Finder") {
+                NSWorkspace.shared.open(ClipFolderWatcher.watchFolderURL)
+            }
+        }
+        .padding()
+    }
+
+    private var displayPath: String {
+        if folderPath.isEmpty {
+            return ClipFolderWatcher.defaultWatchFolderURL.path
+                .replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~")
+        }
+        return folderPath
+            .replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~")
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Select Watch Folder"
+        panel.directoryURL = ClipFolderWatcher.watchFolderURL
+
+        if panel.runModal() == .OK, let url = panel.url {
+            folderPath = url.path
+        }
     }
 }
 #endif

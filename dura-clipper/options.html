@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="options.css">
+  <title>DURA Clipper Settings</title>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>DURA Clipper Settings</h1>
+    </header>
+
+    <section>
+      <h2>Download</h2>
+      <div class="field">
+        <label for="subfolder">Download subfolder</label>
+        <input type="text" id="subfolder" placeholder="DURA-Clips">
+        <p class="hint">Files save to ~/Downloads/<em>subfolder</em>/</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Defaults</h2>
+      <div class="field">
+        <label for="default-notebook">Default notebook</label>
+        <select id="default-notebook"></select>
+      </div>
+      <div class="field">
+        <label for="default-mode">Default clip mode</label>
+        <select id="default-mode">
+          <option value="full">Full Article</option>
+          <option value="selection">Selection Only</option>
+          <option value="bookmark">Bookmark Only</option>
+        </select>
+      </div>
+    </section>
+
+    <section>
+      <h2>Notebooks</h2>
+      <div id="notebook-list"></div>
+      <div class="add-row">
+        <input type="text" id="new-notebook" placeholder="New notebook name">
+        <button id="add-notebook-btn" class="secondary">Add</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Behavior</h2>
+      <div class="field toggle-field">
+        <label for="auto-close">Auto-close popup after save</label>
+        <input type="checkbox" id="auto-close" checked>
+      </div>
+      <div class="field toggle-field">
+        <label for="include-image">Include featured image in body</label>
+        <input type="checkbox" id="include-image">
+      </div>
+    </section>
+
+    <footer>
+      <div id="status" class="hidden">Settings saved.</div>
+      <button id="save-btn" class="primary">Save Settings</button>
+    </footer>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

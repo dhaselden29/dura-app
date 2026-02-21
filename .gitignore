@@ -15,5 +15,11 @@ xcuserdata/
 .build/
 Package.resolved
 
+# Test artifacts
+TestFiles/Export*
+
+# Backups
+backups/
+
 # Claude Code
 .claude/

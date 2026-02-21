@@ -22,7 +22,7 @@ struct NoteDetailView: View {
     @State private var exportResult: ExportResult?
 
     // Publish state
-    @State private var isPublishing = false
+    @State private var publishProgress: Double = 0
     @State private var publishError: String?
     @State private var showPublishError = false
     @State private var showPublishSuccess = false
@@ -105,8 +105,8 @@ struct NoteDetailView: View {
             if exportProgress > 0 && exportProgress < 1 {
                 ExportProgressOverlay(progress: exportProgress)
             }
-            if isPublishing {
-                ExportProgressOverlay(progress: 0.5, label: "Publishing...")
+            if publishProgress > 0 && publishProgress < 1 {
+                ExportProgressOverlay(progress: publishProgress, label: "Publishing...")
             }
         }
         .alert("Export Error", isPresented: $showExportError) {
@@ -436,7 +436,7 @@ struct NoteDetailView: View {
             return
         }
 
-        isPublishing = true
+        publishProgress = 0.01
 
         Task {
             do {
@@ -447,13 +447,17 @@ struct NoteDetailView: View {
                     metadata: note.draftMetadata ?? DraftMetadata(),
                     config: config,
                     asDraft: asDraft
-                )
+                ) { progress in
+                    Task { @MainActor in
+                        publishProgress = progress
+                    }
+                }
                 note.draftMetadata = updatedMeta
-                isPublishing = false
+                publishProgress = 0
                 showPublishSuccess = true
                 try? dataService.save()
             } catch {
-                isPublishing = false
+                publishProgress = 0
                 publishError = error.localizedDescription
                 showPublishError = true
             }

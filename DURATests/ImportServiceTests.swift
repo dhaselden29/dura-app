@@ -1,8 +1,10 @@
-import XCTest
+import Testing
 import SwiftData
+import Foundation
 @testable import DURA
 
-final class ImportServiceTests: XCTestCase {
+@Suite("ImportService")
+struct ImportServiceTests {
 
     private func makeService() throws -> DataService {
         let schema = Schema([Note.self, Notebook.self, Tag.self, Attachment.self, Bookmark.self])
@@ -14,12 +16,12 @@ final class ImportServiceTests: XCTestCase {
 
     // MARK: - Import Tests
 
+    @Test("Import markdown creates note with correct properties")
     @MainActor
-    func testImportMarkdownCreatesNoteWithCorrectProperties() async throws {
+    func importMarkdownCreatesNoteWithCorrectProperties() async throws {
         let ds = try makeService()
         let importService = ImportService(dataService: ds)
 
-        // Create a temporary markdown file
         let markdown = "# Test Document\n\nThis is the body of the document."
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("test-import.md")
         try markdown.write(to: tempURL, atomically: true, encoding: .utf8)
@@ -27,20 +29,21 @@ final class ImportServiceTests: XCTestCase {
 
         let note = try await importService.importFile(at: tempURL)
 
-        XCTAssertEqual(note.title, "Test Document")
-        XCTAssertEqual(note.body, markdown)
-        XCTAssertEqual(note.source, .markdown)
-        XCTAssertEqual(note.originalFormat, "text/markdown")
-        XCTAssertNotNil(note.sourceURL)
+        #expect(note.title == "Test Document")
+        #expect(note.body == markdown)
+        #expect(note.source == .markdown)
+        #expect(note.originalFormat == "text/markdown")
+        #expect(note.sourceURL != nil)
 
         // Verify attachment was created
-        XCTAssertEqual(note.attachments?.count, 1)
-        XCTAssertEqual(note.attachments?.first?.filename, "test-import.md")
-        XCTAssertEqual(note.attachments?.first?.mimeType, "text/markdown")
+        #expect(note.attachments?.count == 1)
+        #expect(note.attachments?.first?.filename == "test-import.md")
+        #expect(note.attachments?.first?.mimeType == "text/markdown")
     }
 
+    @Test("Import into notebook")
     @MainActor
-    func testImportIntoNotebook() async throws {
+    func importIntoNotebook() async throws {
         let ds = try makeService()
         let importService = ImportService(dataService: ds)
         let notebook = ds.createNotebook(name: "Research")
@@ -53,12 +56,13 @@ final class ImportServiceTests: XCTestCase {
 
         let note = try await importService.importFile(at: tempURL, into: notebook)
 
-        XCTAssertEqual(note.notebook?.name, "Research")
-        XCTAssertEqual(note.source, .plainText)
+        #expect(note.notebook?.name == "Research")
+        #expect(note.source == .plainText)
     }
 
+    @Test("Import unsupported type throws")
     @MainActor
-    func testImportUnsupportedTypeThrows() async throws {
+    func importUnsupportedTypeThrows() async throws {
         let ds = try makeService()
         let importService = ImportService(dataService: ds)
 
@@ -68,14 +72,15 @@ final class ImportServiceTests: XCTestCase {
 
         do {
             _ = try await importService.importFile(at: tempURL)
-            XCTFail("Expected ImportError.unsupportedType")
+            Issue.record("Expected ImportError.unsupportedType")
         } catch is ImportError {
             // Expected
         }
     }
 
+    @Test("Import plain text uses first line as title")
     @MainActor
-    func testImportPlainTextUsesFirstLineAsTitle() async throws {
+    func importPlainTextUsesFirstLineAsTitle() async throws {
         let ds = try makeService()
         let importService = ImportService(dataService: ds)
 
@@ -86,15 +91,16 @@ final class ImportServiceTests: XCTestCase {
 
         let note = try await importService.importFile(at: tempURL)
 
-        XCTAssertEqual(note.title, "My Title Line")
-        XCTAssertEqual(note.source, .plainText)
+        #expect(note.title == "My Title Line")
+        #expect(note.source == .plainText)
     }
 
+    @Test("Supported content types not empty")
     @MainActor
-    func testSupportedContentTypesNotEmpty() throws {
+    func supportedContentTypesNotEmpty() throws {
         let ds = try makeService()
         let importService = ImportService(dataService: ds)
 
-        XCTAssertFalse(importService.supportedContentTypes.isEmpty)
+        #expect(!importService.supportedContentTypes.isEmpty)
     }
 }
