@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import SwiftData
 
@@ -155,3 +156,4 @@ final class PodcastClipProcessor {
         return String(format: "%d:%02d", minutes, secs)
     }
 }
+#endif

@@ -6,8 +6,10 @@ struct ContentView: View {
     @State private var selectedNote: Note?
     @State private var sidebarSelection: SidebarItem? = .allNotes
     @State private var dataService: DataService?
+    #if os(macOS)
     @State private var clipWatcher: ClipFolderWatcher?
     @State private var podcastProcessor: PodcastClipProcessor?
+    #endif
 
     var body: some View {
         Group {
@@ -56,15 +58,19 @@ struct ContentView: View {
             if dataService == nil {
                 let ds = DataService(modelContext: modelContext)
                 dataService = ds
+                #if os(macOS)
                 let watcher = ClipFolderWatcher(dataService: ds)
                 clipWatcher = watcher
                 watcher.startWatching()
                 podcastProcessor = PodcastClipProcessor(dataService: ds)
+                #endif
             }
         }
+        #if os(macOS)
         .onDisappear {
             clipWatcher?.stopWatching()
         }
+        #endif
         .toolbar {
             #if os(macOS)
             ToolbarItem(placement: .automatic) {

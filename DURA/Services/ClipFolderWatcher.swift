@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import CoreServices
 import SwiftUI
@@ -206,3 +207,4 @@ final class ClipFolderWatcher {
         }
     }
 }
+#endif

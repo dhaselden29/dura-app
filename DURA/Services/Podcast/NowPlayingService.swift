@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 /// Information about the currently playing media from any app (e.g. Apple Podcasts).
@@ -46,3 +47,4 @@ struct NowPlayingService: Sendable {
         }
     }
 }
+#endif

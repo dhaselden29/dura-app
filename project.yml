@@ -46,6 +46,9 @@ targets:
       - path: DURA
         excludes:
           - "**/.DS_Store"
+          - "Services/Podcast/MediaRemoteBridge.h"
+          - "Services/Podcast/MediaRemoteBridge.m"
+          - "Services/Podcast/DURA-Bridging-Header.h"
     resources:
       - path: DURA/Resources
     settings:
@@ -53,12 +56,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.dura.app
         PRODUCT_NAME: DURA
         INFOPLIST_FILE: DURA/Info.plist
-        CODE_SIGN_ENTITLEMENTS: DURA/DURA.entitlements
+        CODE_SIGN_ENTITLEMENTS: DURA/DURA-iOS.entitlements
         SWIFT_EMIT_LOC_STRINGS: "YES"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         GENERATE_INFOPLIST_FILE: false
-        SWIFT_OBJC_BRIDGING_HEADER: DURA/Services/Podcast/DURA-Bridging-Header.h
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
