@@ -1,8 +1,8 @@
 # DURA — Roadmap & As-Built Documentation
 
-> **Last updated:** 2026-02-20
-> **Codebase:** 7,069 lines of Swift across 42 source files
-> **Tests:** 112 tests in 21 suites (all passing)
+> **Last updated:** 2026-02-21
+> **Codebase:** ~8,100 lines of Swift across 59 source files
+> **Tests:** 166 tests in 26 suites (all passing)
 > **Platforms:** macOS 15.0+, iOS 18.0+
 > **Swift:** 6.0 with strict concurrency
 
@@ -29,6 +29,9 @@ DURA (Dave's Ultimate Research & Drafting App) is a native SwiftUI + SwiftData a
 
 **Git history:**
 ```
+3a1abc4 Add rich text rendering for clipped articles in preview mode
+8c7ea69 Add Reading List & Bookmarks UI (Phase 2)
+8caf591 Add comprehensive roadmap and as-built documentation
 808647c Fix blank PDF export and revert Kanban to inline display
 22ba30b Add export system, WordPress sync, import pipeline, and Kanban board
 8d1ff93 Initial commit: DURA (Dave's Ultimate Research App)
@@ -50,9 +53,6 @@ DURA (Dave's Ultimate Research & Drafting App) is a native SwiftUI + SwiftData a
 │             → NoteDetailView                │
 │             → KanbanBoardView               │
 │             → WordPressSettingsView          │
-├─────────────────────────────────────────────┤
-│  ViewModels                                 │
-│  NoteListViewModel (@Observable)            │
 ├─────────────────────────────────────────────┤
 │  Services                                   │
 │  DataService (SwiftData CRUD)               │
@@ -123,6 +123,23 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `DocxImportProvider.swift` | `DocxImportProvider` | NSAttributedString with OOXML document type |
 | `ImageImportProvider.swift` | `ImageImportProvider` | Vision OCR. PNG, JPEG, HEIC, TIFF, BMP, GIF |
 
+### Clip Watcher (`DURA/Services/`)
+
+| File | Types | Purpose |
+|------|-------|---------|
+| `ClipFolderWatcher.swift` | `ClipFolderWatcher` (@Observable) | FSEvents watcher on `~/Downloads/DURA-Clips/`. Auto-imports `.md` files, moves to `.imported/` subfolder |
+
+### Web Clipper (`dura-clipper/`)
+
+| File | Purpose |
+|------|---------|
+| `manifest.json` | Chrome Manifest V3. Permissions: activeTab, contextMenus, storage, downloads, scripting |
+| `background.js` | Service worker. Context menus (clip page/selection/link/image). YAML front matter + markdown assembly |
+| `content.js` | Content script. Readability.js extraction. Full/selection/bookmark modes. OG/Twitter metadata |
+| `popup.html/js/css` | Popup UI. Turndown HTML→Markdown conversion with GFM plugin |
+| `options.html/js/css` | Settings: subfolder path, notebook list, default mode, auto-close, tag history |
+| `lib/` | Bundled readability.js and Turndown library |
+
 ### Export (`DURA/Services/Export/`)
 
 | File | Types | Purpose |
@@ -131,7 +148,7 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `ExportService.swift` | `ExportService` (Sendable) | Provider registry. Routes by ExportFormat |
 | `MarkdownExportProvider.swift` | `MarkdownExportProvider` | Prepends `# title` if missing. UTF-8 |
 | `HTMLExportProvider.swift` | `HTMLExportProvider` | BlockParser → HTML blocks. Inline markdown conversion. Responsive CSS. `renderHTML()` reused by WordPress |
-| `PDFExportProvider.swift` | `PDFExportProvider` | macOS: CTFramesetter. iOS: UIPrintPageRenderer. US Letter, 50pt margins |
+| `PDFExportProvider.swift` | `PDFExportProvider` | WKWebView.pdf() cross-platform. US Letter, 50pt margins. Faithful HTML/CSS rendering |
 
 ### WordPress (`DURA/Services/WordPress/`)
 
@@ -153,8 +170,9 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `ImportProgressOverlay.swift` | `ImportProgressOverlay` | Capsule with progress bar |
 | **Editor/** | | |
 | `NoteDetailView.swift` | `NoteDetailView` | Full editor. Metadata bar, title, BlockEditorView, status bar. Export/publish menus and flows |
-| `BlockEditorView.swift` | `BlockEditorView` | Edit (MarkdownTextView) / Preview (block render) toggle. Formatting toolbar |
-| `BlockViews.swift` | 14 view types | Renderers for each BlockType. Read-only preview |
+| `BlockEditorView.swift` | `BlockEditorView` | Segmented "Markdown / Rich Text" picker. Edit mode (MarkdownTextView) + preview mode (block render with rich text). Formatting toolbar |
+| `BlockViews.swift` | 14 view types | Renderers for each BlockType. Rich markdown in preview, drag handle hidden in preview |
+| `MarkdownText.swift` | `MarkdownText`, `IsBlockPreviewKey` | Inline markdown renderer via `AttributedString(markdown:)`. Environment key for preview mode |
 | `MarkdownTextView.swift` | `MarkdownTextView` | Platform-specific (NSViewRepresentable / UIViewRepresentable). Keyboard shortcuts for formatting |
 | `ExportDocument.swift` | `ExportDocument` (FileDocument) | Wrapper for `.fileExporter()` |
 | `ExportProgressOverlay.swift` | `ExportProgressOverlay` | Capsule with customizable label |
@@ -165,20 +183,14 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | **Settings/** | | |
 | `WordPressSettingsView.swift` | `WordPressSettingsView` | Site URL, username, app password. Test/Save/Clear. Keychain backed |
 
-### ViewModels (`DURA/ViewModels/`)
-
-| File | Types | Purpose |
-|------|-------|---------|
-| `NoteListViewModel.swift` | `NoteListViewModel` (@Observable) | Filtering, sorting, search state. CRUD delegation to DataService |
-
 ### Tests (`DURATests/`)
 
 | File | Framework | Coverage |
 |------|-----------|----------|
 | `DURATests.swift` | Swift Testing | Note, KanbanStatus, Block, Notebook, Tag, Attachment, Bookmark, NoteSortOrder models |
 | `BlockParserTests.swift` | Swift Testing | All block types parse + render + round-trip (43 tests) |
-| `DataServiceTests.swift` | XCTest | CRUD, relationships, draft lifecycle, search, filtering |
-| `ImportServiceTests.swift` | XCTest | Markdown/PlainText import, notebook routing, error handling |
+| `DataServiceTests.swift` | Swift Testing | CRUD, relationships, draft lifecycle, search, filtering (26 tests) |
+| `ImportServiceTests.swift` | Swift Testing | Markdown/PlainText import, notebook routing, error handling (5 tests) |
 | `ImportProviderTests.swift` | Swift Testing | Per-provider tests: Markdown, PlainText, RTF, PDF, filenameStem |
 | `DocxImageImportTests.swift` | Swift Testing | DOCX + Image provider tests |
 | `ExportProviderTests.swift` | Swift Testing | Markdown (title prepending, dedup), HTML (all block types, escaping, inline), sanitizeFilename |
@@ -246,6 +258,10 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 | Draft workflow | Done | Promote/demote, kanban status, WP status badge |
 | Bookmarks model | Done | Full model with read/unread, tags, thumbnails |
 | Attachments | Done | External storage, OCR text, MIME type tracking |
+| Web clipper (Chrome) | Done | dura-clipper extension: Readability + Turndown, YAML front matter, context menus |
+| Clip folder watcher | Done | FSEvents-based auto-import of `.md` files from `~/Downloads/DURA-Clips/` |
+| Front matter import | Done | YAML front matter parsing: title, url, tags, notebook, excerpt, featured_image, source |
+| Rich text preview | Done | MarkdownText view renders inline markdown (bold, italic, links, code, strikethrough) in Rich Text mode |
 
 ### Partially Implemented
 
@@ -257,6 +273,7 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 | WP categories/tags picker | Metadata only | DraftMetadata has fields. No selection UI in editor |
 | WP scheduled publishing | Metadata only | `scheduledDate` field exists. No date picker UI |
 | WP featured image | Metadata only | `featuredImageId` field exists. No picker or upload |
+| Audio blocks | Stub only | `BlockType.audio` enum, `AudioBlockView` display shell (no playback), markdown/HTML serialization. No `AVPlayer`, no import provider, no recording |
 | CloudKit sync | Placeholder | Comment in DURAApp.swift. Config set to `.none` |
 
 ---
@@ -301,73 +318,126 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 
 ### Bugs to Fix
 
-1. **PDF export typography** — CTFramesetter renders text correctly but loses some HTML styling (CSS is parsed by NSAttributedString but CTFramesetter doesn't apply all of it). Consider WebKit-based PDF rendering for better fidelity.
+1. ~~**PDF export typography**~~ — ✅ Fixed: Replaced CTFramesetter with `WKWebView.pdf()` for faithful HTML/CSS rendering.
 
-2. **NoteListViewModel partially unused** — `NoteListViewModel` exists but `NoteListContentView` does its own filtering inline. Either consolidate or remove the ViewModel.
+2. ~~**NoteListViewModel partially unused**~~ — ✅ Fixed: Deleted. `NoteListContentView` does its own filtering inline.
 
-3. **Export test files in repo** — `TestFiles/Export test.html`, `Export test.pdf`, `Export test2.pdf` are untracked user test artifacts. Should be gitignored.
+3. ~~**Export test files in repo**~~ — ✅ Fixed: Deleted and gitignored.
 
 ### Technical Debt
 
-4. **No `.gitignore`** — Project lacks a gitignore file. Should exclude `.DS_Store`, `*.xcodeproj` (generated), DerivedData, TestFiles exports, etc.
+4. ~~**No `.gitignore`**~~ — ✅ Fixed: Added with standard exclusions + `TestFiles/Export*`.
 
-5. **KanbanWindowView orphaned** — `DURA/Views/Kanban/KanbanWindowView.swift` still exists but is no longer used after reverting to inline Kanban. Should be deleted.
+5. ~~**KanbanWindowView orphaned**~~ — ✅ Fixed: Deleted.
 
-6. **Bookmark UI incomplete** — `Bookmark` model is fully implemented but no view displays bookmarks. Reading List sidebar item exists but navigates nowhere.
+6. **Bookmark UI partial** — `Bookmark` model is fully implemented, Reading List sidebar item wired, but limited functionality (no add action, no link previews).
 
 7. **Wikilink infrastructure unused** — `Note.linkedNoteIDs` field is declared but never written to or read from in any view or service.
 
-8. **Mixed test frameworks** — Some tests use XCTest (`DataServiceTests`, `ImportServiceTests`), others use Swift Testing (`@Test`). Both work but inconsistent.
+8. ~~**Mixed test frameworks**~~ — ✅ Fixed: All tests now use Swift Testing.
 
 9. **No error handling on DataService.save()** — Several call sites use `try? dataService.save()` silently swallowing errors.
 
-10. **WordPress publish progress** — The progress overlay shows a static 0.5 value during publishing instead of real progress.
+10. ~~**WordPress publish progress**~~ — ✅ Fixed: Wired real progress callback from `WordPressService.publishPost()`.
+
+11. **WordPress.com not supported** — Current implementation uses self-hosted WP REST API with Basic Auth (Application Passwords). WordPress.com sites require OAuth2 via `public-api.wordpress.com`. See Phase 4 roadmap.
 
 ---
 
 ## Future Roadmap
 
-### Phase 1: Polish & Stability
-- [ ] Add `.gitignore`
-- [ ] Delete orphaned `KanbanWindowView.swift`
-- [ ] Consolidate or remove `NoteListViewModel`
-- [ ] Add real progress tracking to WordPress publish
-- [ ] Improve PDF export fidelity (consider WKWebView rendering)
-- [ ] Unify test framework (migrate XCTest → Swift Testing)
+### Phase 1: Polish & Stability ✅
+- [x] Add `.gitignore` (with `TestFiles/Export*` pattern)
+- [x] Delete orphaned `KanbanWindowView.swift`
+- [x] Delete unused `NoteListViewModel.swift`
+- [x] Wire real progress tracking to WordPress publish (progress callback)
+- [x] Rewrite PDF export with `WKWebView.pdf()` for faithful HTML/CSS rendering
+- [x] Migrate `DataServiceTests` and `ImportServiceTests` from XCTest → Swift Testing
+- [x] Delete untracked export test artifacts
 
 ### Phase 2: Reading List & Bookmarks
-- [ ] Reading List view (list of bookmarks with read/unread)
+- [x] Reading List UI (sidebar wired, bookmark list view)
 - [ ] Add Bookmark action (URL input or share sheet)
 - [ ] Link preview thumbnails
 - [ ] Tag bookmarks from UI
 - [ ] Open bookmark in browser
 
-### Phase 3: Wikilinks & Note Graph
+### Phase 3: Audio Input & Import Enhancements ← NEXT
+> **Status:** Planned. Implementation order below.
+
+#### 3a. Audio File Import + Playback
+- [ ] Create `AudioImportProvider` — support MP3, M4A, WAV, AIFF, AAC via UTTypes
+- [ ] Wire `AVPlayer` playback into existing `AudioBlockView` stub (play/pause/seek)
+- [ ] Store audio files as `Attachment` with `.externalStorage`
+- [ ] Add `ImportSource.audio` case to `ImportSource` enum
+- [ ] Register audio UTTypes in `ImportService` provider lookup
+- [ ] Enable drag-and-drop of audio files onto note list
+
+#### 3b. Voice Note Recording
+- [ ] Add microphone permission (`NSMicrophoneUsageDescription` in Info.plist)
+- [ ] Create `VoiceRecorderView` — record button, waveform visualization, stop/save
+- [ ] Use `AVAudioRecorder` to capture M4A audio
+- [ ] On save: create new note with audio block + attachment
+- [ ] Add recording entry point in toolbar or note list
+
+#### 3c. On-Device Speech-to-Text Transcription
+- [ ] Integrate `SFSpeechRecognizer` for on-device transcription (macOS 15+ / iOS 18+)
+- [ ] Add `Speech` framework and `NSSpeechRecognitionUsageDescription` permission
+- [ ] Post-recording transcription: audio → text inserted as note body below audio block
+- [ ] Progress indicator during transcription
+- [ ] Fallback handling when on-device recognition unavailable
+
+#### 3d. Expand ClipFolderWatcher
+- [ ] Watch all supported import types (PDF, DOCX, RTF, TXT, images, audio) not just `.md`
+- [ ] Configure watched extensions in settings
+- [ ] Show watcher status and recent imports in UI
+
+#### 3e. HTML Import
+- [ ] Create `HTMLImportProvider` — support `.html` and `.htm` files
+- [ ] Extract main content (strip nav, footer, scripts) or use full body
+- [ ] Convert HTML → Markdown (similar to dura-clipper's Turndown approach, server-side)
+- [ ] Register `.html` UTType in `ImportService`
+
+#### 3f. EPUB Import
+- [ ] Create `EPUBImportProvider` — parse EPUB (zipped XHTML)
+- [ ] Extract text content and inline images from EPUB chapters
+- [ ] Convert XHTML → Markdown, concatenate chapters with `## Chapter` headings
+- [ ] Register `UTType(filenameExtension: "epub")` in `ImportService`
+
+#### Audio Infrastructure Notes
+- `BlockType.audio` already exists with `displayName: "Audio"`, `iconName: "waveform"`
+- `AudioBlockView` has UI shell (filename + play icon) but **no AVPlayer** — needs wiring
+- `BlockParser` serializes audio as `🔊 [filename](url)` — no reverse parsing yet
+- `HTMLExportProvider` renders `<audio controls><source src="..."></audio>`
+- `Block.metadata` stores `"filename"` and content stores the URL/path
+- No `AVFoundation` import exists anywhere in the codebase currently
+
+### Phase 4: Wikilinks & Note Graph
 - [ ] Parse `[[note title]]` syntax in markdown
 - [ ] Resolve wikilinks to note IDs bidirectionally
 - [ ] Backlinks panel in NoteDetailView
 - [ ] Note graph visualization
 
-### Phase 4: WordPress Enhancements
+### Phase 5: WordPress Enhancements
+- [ ] **WordPress.com OAuth2 support** — Register app at `developer.wordpress.com/apps/` (free), implement OAuth2 token flow, hit `public-api.wordpress.com/rest/v1.1/` instead of `/wp-json/wp/v2/`. Currently only self-hosted WP with Application Passwords works; WordPress.com (free/paid) uses a different API entirely.
 - [ ] Category and tag picker UI for WP publishing
 - [ ] Featured image picker + upload to WP media library
 - [ ] Scheduled publish date picker
 - [ ] Pull existing posts from WP for editing
-- [ ] Support OAuth authentication (for Google-login WordPress sites)
 
-### Phase 5: CloudKit Sync
+### Phase 6: CloudKit Sync
 - [ ] Enable CloudKit in ModelConfiguration
 - [ ] Configure signing and entitlements
 - [ ] Handle merge conflicts
 - [ ] Sync status indicators
 
-### Phase 6: Block Editor
+### Phase 7: Block Editor
 - [ ] Editable block-level UI (not just raw markdown)
 - [ ] Drag-and-drop block reordering
 - [ ] Slash commands for block insertion
 - [ ] Inline image upload and embedding
 
-### Phase 7: Advanced Features
+### Phase 8: Advanced Features
 - [ ] AI-assisted research summaries
 - [ ] Web clipper (Safari extension)
 - [ ] Collaboration / sharing
@@ -414,26 +484,44 @@ Or build and run from Xcode directly.
 3. **Import/Export** follow identical provider patterns — check `ImportProvider.swift` and `ExportProvider.swift` for the protocols
 4. **DraftMetadata** is JSON embedded in Note — presence = isDraft
 5. **DataService** is the single CRUD gateway for all SwiftData operations
-6. **Tests use two frameworks** — Swift Testing (`@Test`, `#expect`) and XCTest (`XCTestCase`, `XCTAssert`)
+6. **Tests use Swift Testing** — `@Test`, `#expect`, `@Suite`, `Issue.record()`
+7. **ClipFolderWatcher** auto-imports `.md` files from `~/Downloads/DURA-Clips/` via FSEvents
+8. **dura-clipper/** is a Chrome extension that clips web pages to markdown with YAML front matter
+9. **MarkdownImportProvider** parses YAML front matter for metadata (title, url, tags, notebook, source)
+10. **Rich text preview** uses `MarkdownText` view + `isBlockPreview` environment key
 
 ### Key Files to Read First
 1. `DURA/Models/Note.swift` — central entity, all relationships
 2. `DURA/Services/DataService.swift` — all CRUD methods
 3. `DURA/Services/BlockParser.swift` — markdown ↔ blocks
-4. `DURA/Views/ContentView.swift` — app structure and navigation
-5. `DURA/Views/Editor/NoteDetailView.swift` — main editor with export/publish
-6. `project.yml` — build configuration
+4. `DURA/Services/Import/ImportService.swift` — import orchestrator with provider registry
+5. `DURA/Services/Import/ImportProvider.swift` — `ImportProvider` protocol, `ImportResult`, `ImportError`
+6. `DURA/Views/ContentView.swift` — app structure and navigation
+7. `DURA/Views/Editor/NoteDetailView.swift` — main editor with export/publish
+8. `DURA/Views/Editor/BlockViews.swift` — all block renderers including `AudioBlockView` stub
+9. `project.yml` — build configuration
 
 ### Common Tasks
-- **Add a new import format:** Create a provider implementing `ImportProvider`, register in `ImportService.init()`
+- **Add a new import format:** Create a provider implementing `ImportProvider`, register in `ImportService.init()`. See existing providers for pattern.
 - **Add a new export format:** Create a provider implementing `ExportProvider`, add case to `ExportFormat` enum, register in `ExportService.init()`
 - **Add a new block type:** Add case to `BlockType` enum, add parsing in `BlockParser`, add rendering in `HTMLExportProvider.renderBlock()`, add view in `BlockViews.swift`
 - **Add a SwiftData model:** Define `@Model` class, add to schema in `DURAApp.swift`, add CRUD methods in `DataService`
 - **Modify the Kanban board:** Files in `DURA/Views/Kanban/`. Statuses defined in `KanbanStatus.swift`
+- **Wire audio playback:** `AudioBlockView` in `BlockViews.swift` has the UI shell. Needs `AVPlayer` wired to the play button. Audio URL is in `block.content`, filename in `block.metadata["filename"]`
 
 ### What's NOT Working / Incomplete
-- Reading List has no UI (model only)
+- **Audio blocks** — `BlockType.audio` exists, `AudioBlockView` renders a static UI, but no playback (`AVPlayer`), no audio import provider, no recording, no transcription. This is the **next implementation target** (Phase 3).
+- Reading List has partial UI (model + sidebar) but limited functionality
 - Wikilinks have no implementation (field only)
 - CloudKit sync is disabled
-- WordPress OAuth not supported (only Application Passwords)
+- WordPress.com not supported (only self-hosted WP with Application Passwords; WordPress.com needs OAuth2)
 - Block editor is read-only preview; editing is raw markdown
+
+### Next Up: Phase 3 — Audio Input & Import Enhancements
+The immediate next work is Phase 3 (see roadmap above). Implementation order:
+1. **3a** Audio file import provider + wire AVPlayer playback into AudioBlockView
+2. **3b** Voice note recording (AVAudioRecorder + mic permission)
+3. **3c** On-device speech-to-text (SFSpeechRecognizer)
+4. **3d** Expand ClipFolderWatcher to all file types
+5. **3e** HTML import provider
+6. **3f** EPUB import provider
