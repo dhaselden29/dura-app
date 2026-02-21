@@ -1,10 +1,11 @@
 # DURA — Roadmap & As-Built Documentation
 
 > **Last updated:** 2026-02-21
-> **Codebase:** ~8,100 lines of Swift across 59 source files
+> **Codebase:** ~8,000 lines of Swift/Obj-C across 66 source files (+ 11 test files)
 > **Tests:** 166 tests in 26 suites (all passing)
 > **Platforms:** macOS 15.0+, iOS 18.0+
 > **Swift:** 6.0 with strict concurrency
+> **Obj-C:** Bridging header for private MediaRemote framework (podcast clips)
 
 ---
 
@@ -29,6 +30,10 @@ DURA (Dave's Ultimate Research & Drafting App) is a native SwiftUI + SwiftData a
 
 **Git history:**
 ```
+3000112 Add podcast clip capture system (Phase 3.5)
+2cacf4c Add Phase 3: audio import/playback, voice recording, speech-to-text, HTML/EPUB import, and expanded file watcher
+1282e74 Update roadmap with Phase 3 audio input and import enhancements plan
+c3362d6 Add web clipper, clip folder watcher, front matter import, and cleanup
 3a1abc4 Add rich text rendering for clipped articles in preview mode
 8c7ea69 Add Reading List & Bookmarks UI (Phase 2)
 8caf591 Add comprehensive roadmap and as-built documentation
@@ -46,28 +51,35 @@ DURA (Dave's Ultimate Research & Drafting App) is a native SwiftUI + SwiftData a
 ### Layers
 
 ```
-┌─────────────────────────────────────────────┐
-│  Views (SwiftUI)                            │
-│  ContentView → SidebarView                  │
-│             → NoteListContentView           │
-│             → NoteDetailView                │
-│             → KanbanBoardView               │
-│             → WordPressSettingsView          │
-├─────────────────────────────────────────────┤
-│  Services                                   │
-│  DataService (SwiftData CRUD)               │
-│  BlockParser (Markdown ↔ Blocks)            │
-│  ImportService + 6 ImportProviders          │
-│  ExportService + 3 ExportProviders          │
-│  WordPressService (REST API)                │
-│  WordPressCredentialStore (Keychain)         │
-├─────────────────────────────────────────────┤
-│  Models (SwiftData @Model + value types)    │
-│  Note, Notebook, Tag, Attachment, Bookmark  │
-│  Block, DraftMetadata, KanbanStatus, etc.   │
-├─────────────────────────────────────────────┤
-│  Persistence: SwiftData (local, no CloudKit)│
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  Views (SwiftUI)                                 │
+│  ContentView → SidebarView                       │
+│             → NoteListContentView                │
+│             → NoteDetailView                     │
+│             → KanbanBoardView                    │
+│             → PodcastClipsListView               │
+│             → BookmarkListView                   │
+│             → Settings (General, WP, Podcasts)   │
+├──────────────────────────────────────────────────┤
+│  Services                                        │
+│  DataService (SwiftData CRUD)                    │
+│  BlockParser (Markdown ↔ Blocks)                 │
+│  ImportService + 9 ImportProviders               │
+│  ExportService + 3 ExportProviders               │
+│  PodcastClipProcessor + NowPlayingService        │
+│  PodcastResolverService + RSSFeedParser           │
+│  AudioSegmentExporter                            │
+│  SpeechTranscriptionService + VoiceRecorderService│
+│  WordPressService (REST API)                     │
+│  WordPressCredentialStore (Keychain)              │
+│  ClipFolderWatcher (FSEvents)                    │
+├──────────────────────────────────────────────────┤
+│  Models (SwiftData @Model + value types)         │
+│  Note, Notebook, Tag, Attachment, Bookmark       │
+│  PodcastClip, Block, DraftMetadata, KanbanStatus │
+├──────────────────────────────────────────────────┤
+│  Persistence: SwiftData (local, no CloudKit)     │
+└──────────────────────────────────────────────────┘
 ```
 
 ### Key Patterns
@@ -77,6 +89,7 @@ DURA (Dave's Ultimate Research & Drafting App) is a native SwiftUI + SwiftData a
 - **JSON-in-SwiftData** — `DraftMetadata` is a `Codable` struct stored as `Data` in `Note.draftMetadataData`, decoded on demand via computed property. Same pattern for `kanbanStatusRaw`/`sourceRaw` using raw string encoding.
 - **Strict concurrency** — Swift 6.0 with `Sendable`, `@MainActor`, `actor` (WordPressService). Progress callbacks are `@Sendable`.
 - **Cross-platform** — `#if canImport(AppKit)` / `#if canImport(UIKit)` for platform-specific code (text views, PDF generation). Shared everything else.
+- **Obj-C bridge for private APIs** — `MediaRemoteBridge.h/.m` uses `dlopen`/`dlsym` to access the private MediaRemote framework. Isolated behind `NowPlayingService` as a single swap point for App Store compliance.
 
 ### Project Generator
 
@@ -108,8 +121,10 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 
 | File | Types | Purpose |
 |------|-------|---------|
-| `DataService.swift` | `DataService` (@Observable) | Central CRUD for all SwiftData models. ~30 methods. Sorting, filtering, search |
+| `DataService.swift` | `DataService` (@Observable) | Central CRUD for all SwiftData models (Notes, Notebooks, Tags, Attachments, Bookmarks, PodcastClips). ~35 methods. Sorting, filtering, search |
 | `BlockParser.swift` | `BlockParser` (struct) | Static `parse(_:)` and `render(_:)`. Line-by-line markdown parsing, handles all 12 block types |
+| `SpeechTranscriptionService.swift` | `SpeechTranscriptionService` (Sendable) | On-device `SFSpeechRecognizer` transcription with progress callbacks |
+| `VoiceRecorderService.swift` | `VoiceRecorderService` | `AVAudioRecorder`-based voice note capture (M4A) |
 
 ### Import (`DURA/Services/Import/`)
 
@@ -123,6 +138,9 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `PDFImportProvider.swift` | `PDFImportProvider` | Text layer extraction + Vision OCR fallback. Multi-page |
 | `DocxImportProvider.swift` | `DocxImportProvider` | NSAttributedString with OOXML document type |
 | `ImageImportProvider.swift` | `ImageImportProvider` | Vision OCR. PNG, JPEG, HEIC, TIFF, BMP, GIF |
+| `AudioImportProvider.swift` | `AudioImportProvider` | Audio file import. MP3, M4A, WAV, AIFF, AAC |
+| `HTMLImportProvider.swift` | `HTMLImportProvider` | HTML content extraction and markdown conversion |
+| `EPUBImportProvider.swift` | `EPUBImportProvider` | EPUB parsing (zipped XHTML), chapter extraction |
 
 ### Podcast (`DURA/Services/Podcast/`)
 
@@ -193,9 +211,14 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `KanbanBoardView.swift` | `KanbanBoardView` | Horizontal scrolling columns. Drag-and-drop cards |
 | `KanbanColumnView.swift` | `KanbanColumnView` | Collapsible column with header, count badge, drop zone |
 | `KanbanCardView.swift` | `KanbanCardView` | Compact card. Selection/connection highlighting. Context menu |
+| **ReadingList/** | | |
+| `BookmarkListView.swift` | `BookmarkListView`, `AddBookmarkSheet` | Bookmark list with search, filter (all/unread), add sheet, swipe actions |
+| `BookmarkRowView.swift` | `BookmarkRowView` | Bookmark row with URL, title, read status |
 | **PodcastClips/** | | |
 | `PodcastClipsListView.swift` | `PodcastClipsListView` | Filterable list of podcast clips. Search, status filter, swipe delete |
 | `PodcastClipRowView.swift` | `PodcastClipRowView` | Row with artwork, title, timestamp, status badge |
+| **VoiceRecorder/** | | |
+| `VoiceRecorderView.swift` | `VoiceRecorderView` | Voice recording UI with record/stop, creates note with audio block |
 | **Settings/** | | |
 | `WordPressSettingsView.swift` | `WordPressSettingsView` | Site URL, username, app password. Test/Save/Clear. Keychain backed |
 | `PodcastClipsSettingsView.swift` | `PodcastClipsSettingsView` | Enable toggle, clip duration picker, shortcut display |
@@ -213,6 +236,8 @@ Uses **XcodeGen** (`project.yml`). Run `xcodegen generate` after adding/removing
 | `ExportProviderTests.swift` | Swift Testing | Markdown (title prepending, dedup), HTML (all block types, escaping, inline), sanitizeFilename |
 | `ExportServiceTests.swift` | Swift Testing | Provider routing, MIME types, PDF generation, empty content |
 | `WordPressServiceTests.swift` | Swift Testing | MockURLProtocol. Create/update posts, draft flag, auth header, connection test, 401 handling |
+| `BookmarkListTests.swift` | Swift Testing | Bookmark list view and filtering tests |
+| `FrontMatterImportTests.swift` | Swift Testing | YAML front matter parsing: title, url, tags, notebook, source |
 
 ### Configuration
 
@@ -266,7 +291,7 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 | Pin / Favorite | Done | Pinned notes sort to top |
 | Search | Done | Title + body full-text |
 | Sort options | Done | 6 sort orders |
-| Import (6 formats) | Done | MD, TXT, RTF, PDF, DOCX, Images with OCR |
+| Import (9 formats) | Done | MD, TXT, RTF, PDF, DOCX, Images (OCR), Audio, HTML, EPUB |
 | Drag-and-drop import | Done | macOS file drop on note list |
 | Export: Markdown | Done | Title prepending, sanitized filenames |
 | Export: HTML | Done | Full CSS, responsive, all block types |
@@ -281,18 +306,23 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 | Clip folder watcher | Done | FSEvents-based auto-import of `.md` files from `~/Downloads/DURA-Clips/` |
 | Front matter import | Done | YAML front matter parsing: title, url, tags, notebook, excerpt, featured_image, source |
 | Rich text preview | Done | MarkdownText view renders inline markdown (bold, italic, links, code, strikethrough) in Rich Text mode |
+| Audio import + playback | Done | AudioImportProvider, AVPlayer in AudioBlockView, drag-and-drop audio files |
+| Voice recording | Done | VoiceRecorderView with AVAudioRecorder, creates note with audio block |
+| Speech-to-text | Done | On-device SFSpeechRecognizer transcription with progress |
+| HTML import | Done | HTMLImportProvider with content extraction and markdown conversion |
+| EPUB import | Done | EPUBImportProvider with chapter extraction and XHTML→Markdown |
+| Podcast clips | Done | Capture now-playing → resolve metadata → extract audio → transcribe → linked note. Private MediaRemote API (personal use only) |
 
 ### Partially Implemented
 
 | Feature | Status | What's Missing |
 |---------|--------|----------------|
-| Reading List UI | Model only | No dedicated view. Sidebar item exists but not wired |
+| Reading List UI | Partial | BookmarkListView with search/filter/add/swipe. Missing: link preview thumbnails, tag from UI |
 | Wikilinks | Model only | `linkedNoteIDs` field exists. No parsing, no UI, no bidirectional resolution |
 | Block-level editing | Preview only | Blocks render read-only. Editing is raw markdown only |
 | WP categories/tags picker | Metadata only | DraftMetadata has fields. No selection UI in editor |
 | WP scheduled publishing | Metadata only | `scheduledDate` field exists. No date picker UI |
 | WP featured image | Metadata only | `featuredImageId` field exists. No picker or upload |
-| Audio blocks | Stub only | `BlockType.audio` enum, `AudioBlockView` display shell (no playback), markdown/HTML serialization. No `AVPlayer`, no import provider, no recording |
 | CloudKit sync | Placeholder | Comment in DURAApp.swift. Config set to `.none` |
 
 ---
@@ -331,6 +361,14 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 **Decision:** Sandbox OFF in entitlements.
 **Rationale:** Needed for unrestricted file system access (import/export). Network client entitlement for WordPress API.
 
+### 9. Private MediaRemote Framework for Podcast Clips
+**Decision:** Use `dlopen`/`dlsym` via Obj-C bridge to access `MRMediaRemoteGetNowPlayingInfo` from the private MediaRemote framework.
+**Rationale:** `MPNowPlayingInfoCenter.default().nowPlayingInfo` only returns what YOUR app published — it cannot read other apps. The private API is the only way to get real-time playback position from Apple Podcasts. Isolated behind `NowPlayingService` as a single swap point. For personal use; App Store submission requires replacing with manual-entry UI or share-link parsing.
+
+### 10. Pipeline Processor Pattern for Podcast Clips
+**Decision:** `PodcastClipProcessor` orchestrates a multi-step async pipeline (capture → resolve → extract → transcribe → note) with non-fatal failure at each step.
+**Rationale:** Each step can fail independently without blocking the others. A clip without transcription is still useful. A clip without audio resolution still captures the moment. Status tracking (pending/resolved/failed) lets the UI reflect progress.
+
 ---
 
 ## Known Issues & Technical Debt
@@ -359,7 +397,9 @@ Storage: Local only (`cloudKitDatabase: .none`). In-memory for tests.
 
 10. ~~**WordPress publish progress**~~ — ✅ Fixed: Wired real progress callback from `WordPressService.publishPost()`.
 
-11. **WordPress.com not supported** — Current implementation uses self-hosted WP REST API with Basic Auth (Application Passwords). WordPress.com sites require OAuth2 via `public-api.wordpress.com`. See Phase 4 roadmap.
+11. **WordPress.com not supported** — Current implementation uses self-hosted WP REST API with Basic Auth (Application Passwords). WordPress.com sites require OAuth2 via `public-api.wordpress.com`. See Phase 5 roadmap.
+
+12. **Podcast clips use private API** — `MediaRemoteBridge.m` uses `dlopen` on the private MediaRemote framework. Works for personal use but WILL be rejected by App Store review. See App Store warning in Phase 3.5 roadmap section for swap instructions.
 
 ---
 
@@ -563,17 +603,21 @@ Or build and run from Xcode directly.
 8. **dura-clipper/** is a Chrome extension that clips web pages to markdown with YAML front matter
 9. **MarkdownImportProvider** parses YAML front matter for metadata (title, url, tags, notebook, source)
 10. **Rich text preview** uses `MarkdownText` view + `isBlockPreview` environment key
+11. **PodcastClipProcessor** orchestrates capture → resolve → extract → transcribe → note pipeline
+12. **NowPlayingService** is the single swap point for the private MediaRemote API (App Store compliance)
+13. **Obj-C bridging header** at `DURA/Services/Podcast/DURA-Bridging-Header.h` — set in `project.yml` for both targets
 
 ### Key Files to Read First
-1. `DURA/Models/Note.swift` — central entity, all relationships
-2. `DURA/Services/DataService.swift` — all CRUD methods
+1. `DURA/Models/Note.swift` — central entity, all relationships (including `podcastClip`)
+2. `DURA/Services/DataService.swift` — all CRUD methods (Notes, Notebooks, Tags, Attachments, Bookmarks, PodcastClips)
 3. `DURA/Services/BlockParser.swift` — markdown ↔ blocks
-4. `DURA/Services/Import/ImportService.swift` — import orchestrator with provider registry
+4. `DURA/Services/Import/ImportService.swift` — import orchestrator with 9 provider types
 5. `DURA/Services/Import/ImportProvider.swift` — `ImportProvider` protocol, `ImportResult`, `ImportError`
-6. `DURA/Views/ContentView.swift` — app structure and navigation
+6. `DURA/Views/ContentView.swift` — app structure, navigation, sidebar items, settings tabs
 7. `DURA/Views/Editor/NoteDetailView.swift` — main editor with export/publish
-8. `DURA/Views/Editor/BlockViews.swift` — all block renderers including `AudioBlockView` stub
-9. `project.yml` — build configuration
+8. `DURA/Views/Editor/BlockViews.swift` — all block renderers including `AudioBlockView`
+9. `DURA/Services/Podcast/PodcastClipProcessor.swift` — podcast capture pipeline orchestrator
+10. `project.yml` — build configuration (includes bridging header for Obj-C)
 
 ### Common Tasks
 - **Add a new import format:** Create a provider implementing `ImportProvider`, register in `ImportService.init()`. See existing providers for pattern.
@@ -581,7 +625,8 @@ Or build and run from Xcode directly.
 - **Add a new block type:** Add case to `BlockType` enum, add parsing in `BlockParser`, add rendering in `HTMLExportProvider.renderBlock()`, add view in `BlockViews.swift`
 - **Add a SwiftData model:** Define `@Model` class, add to schema in `DURAApp.swift`, add CRUD methods in `DataService`
 - **Modify the Kanban board:** Files in `DURA/Views/Kanban/`. Statuses defined in `KanbanStatus.swift`
-- **Wire audio playback:** `AudioBlockView` in `BlockViews.swift` has the UI shell. Needs `AVPlayer` wired to the play button. Audio URL is in `block.content`, filename in `block.metadata["filename"]`
+- **Modify podcast clip pipeline:** Pipeline steps in `PodcastClipProcessor.swift`. Resolution via `PodcastResolverService`, extraction via `AudioSegmentExporter`, transcription via `SpeechTranscriptionService`. To swap out MediaRemote, only change `NowPlayingService.swift`
+- **Wire audio playback:** `AudioBlockView` in `BlockViews.swift`. Audio URL is in `block.content`, filename in `block.metadata["filename"]`
 
 ### What's NOT Working / Incomplete
 - Reading List has partial UI (model + sidebar) but limited functionality
