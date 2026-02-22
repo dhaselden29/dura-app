@@ -110,12 +110,12 @@ struct NoteListContentView: View {
         switch sidebarSelection {
         case .allNotes, .none:
             break
-        case .inbox:
-            notes = notes.filter { $0.notebook?.name == "Inbox" || $0.notebook == nil }
         case .favorites:
             notes = notes.filter { $0.isFavorite }
         case .drafts:
             notes = notes.filter { $0.isDraft }
+        case .kanbanStatus(let status):
+            notes = notes.filter { $0.kanbanStatus == status }
         case .notebook(let nb):
             notes = notes.filter { $0.notebook?.id == nb.id }
         case .tag(let tag):

@@ -26,8 +26,7 @@ struct KanbanBoardView: View {
                                 allNotes: allNotes,
                                 connectedNoteIDs: connectedNoteIDs,
                                 selectedNote: $selectedNote,
-                                dataService: dataService,
-                                startCollapsed: status == .note
+                                dataService: dataService
                             )
                         }
                     }

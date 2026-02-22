@@ -84,11 +84,12 @@ struct NoteModelTests {
 @Suite("KanbanStatus")
 struct KanbanStatusTests {
 
-    @Test("Board statuses exclude .none")
+    @Test("Board statuses exclude .none and .note")
     func boardStatuses() {
         let statuses = KanbanStatus.boardStatuses
         #expect(!statuses.contains(.none))
-        #expect(statuses.count == 6)
+        #expect(!statuses.contains(.note))
+        #expect(statuses.count == 5)
     }
 
     @Test("All cases have display names")

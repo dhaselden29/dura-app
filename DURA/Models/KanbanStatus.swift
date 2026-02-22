@@ -36,8 +36,8 @@ enum KanbanStatus: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Only statuses shown as Kanban columns (excludes .none).
+    /// Only statuses shown as Kanban columns (excludes .none and .note).
     static var boardStatuses: [KanbanStatus] {
-        allCases.filter { $0 != .none }
+        allCases.filter { $0 != .none && $0 != .note }
     }
 }

@@ -26,12 +26,15 @@ struct SidebarView: View {
             Section("Notes") {
                 Label("All Notes", systemImage: "tray.full")
                     .tag(SidebarItem.allNotes)
-                Label("Inbox", systemImage: "tray.and.arrow.down")
-                    .tag(SidebarItem.inbox)
                 Label("Favorites", systemImage: "star")
                     .tag(SidebarItem.favorites)
                 Label("Drafts", systemImage: "doc.text")
                     .tag(SidebarItem.drafts)
+
+                ForEach(KanbanStatus.boardStatuses) { status in
+                    Label(status.displayName, systemImage: status.iconName)
+                        .tag(SidebarItem.kanbanStatus(status))
+                }
             }
 
             Section("Articles") {

@@ -99,9 +99,9 @@ struct ContentView: View {
 
 enum SidebarItem: Hashable {
     case allNotes
-    case inbox
     case favorites
     case drafts
+    case kanbanStatus(KanbanStatus)
     case kanban
     case allArticles
     case readingList
@@ -112,9 +112,9 @@ enum SidebarItem: Hashable {
     var title: String {
         switch self {
         case .allNotes: "All Notes"
-        case .inbox: "Inbox"
         case .favorites: "Favorites"
         case .drafts: "Drafts"
+        case .kanbanStatus(let status): status.displayName
         case .kanban: "Kanban Board"
         case .allArticles: "All Articles"
         case .readingList: "Reading List"
@@ -127,9 +127,9 @@ enum SidebarItem: Hashable {
     var iconName: String {
         switch self {
         case .allNotes: "tray.full"
-        case .inbox: "tray.and.arrow.down"
         case .favorites: "star"
         case .drafts: "doc.text"
+        case .kanbanStatus(let status): status.iconName
         case .kanban: "rectangle.split.3x1"
         case .allArticles: "doc.richtext"
         case .readingList: "bookmark"
