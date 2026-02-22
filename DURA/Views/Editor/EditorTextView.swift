@@ -5,6 +5,8 @@ import AppKit
 final class EditorTextView: NSTextView {
     /// Callback for highlight creation from context menu.
     var onHighlightRequest: ((NSRange, HighlightColor) -> Void)?
+    /// Callback for annotation (comment) creation from context menu.
+    var onAnnotationRequest: ((NSRange) -> Void)?
 
     /// Called by the coordinator to apply a formatting action.
     func applyFormat(_ action: FormatAction) {
@@ -38,9 +40,24 @@ final class EditorTextView: NSTextView {
             highlightItem.submenu = highlightMenu
             highlightItem.image = NSImage(systemSymbolName: "highlighter", accessibilityDescription: "Highlight")
             menu.insertItem(highlightItem, at: 0)
+
+            let commentItem = NSMenuItem(
+                title: "Add Comment",
+                action: #selector(addComment(_:)),
+                keyEquivalent: ""
+            )
+            commentItem.target = self
+            commentItem.image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: "Add Comment")
+            menu.insertItem(commentItem, at: 0)
         }
 
         return menu
+    }
+
+    @objc private func addComment(_ sender: NSMenuItem) {
+        let range = selectedRange()
+        guard range.length > 0 else { return }
+        onAnnotationRequest?(range)
     }
 
     @objc private func highlightWithColor(_ sender: NSMenuItem) {

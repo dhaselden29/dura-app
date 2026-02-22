@@ -9,6 +9,10 @@ struct NoteDetailView: View {
     @State private var bodyFocusRequested = false
     @State private var showHighlightsPanel = false
     @State private var showAnnotationSidebar = false
+    @State private var showAnnotationPopup = false
+    @State private var pendingAnnotationAnchor = ""
+    @State private var pendingAnnotationStart = 0
+    @State private var pendingAnnotationLength = 0
 
     @AppStorage("readerTheme") private var themeRaw: String = ReaderDefaults.theme
 
@@ -57,6 +61,12 @@ struct NoteDetailView: View {
                         var highlights = note.highlights
                         highlights.append(highlight)
                         note.highlights = highlights
+                    },
+                    onAnnotationRequest: { anchorText, rangeStart, rangeLength in
+                        pendingAnnotationAnchor = anchorText
+                        pendingAnnotationStart = rangeStart
+                        pendingAnnotationLength = rangeLength
+                        showAnnotationPopup = true
                     },
                     onScrollProgressChanged: { percent in
                         var progress = note.readingProgress
@@ -118,6 +128,15 @@ struct NoteDetailView: View {
         .noteMenu(note: note, dataService: dataService, showHighlightsPanel: $showHighlightsPanel, showAnnotationSidebar: $showAnnotationSidebar)
         .sheet(isPresented: $showHighlightsPanel) {
             HighlightsPanelView(note: note)
+        }
+        .sheet(isPresented: $showAnnotationPopup) {
+            AnnotationPopupView(
+                note: note,
+                dataService: dataService,
+                anchorText: pendingAnnotationAnchor,
+                rangeStart: pendingAnnotationStart,
+                rangeLength: pendingAnnotationLength
+            )
         }
     }
 

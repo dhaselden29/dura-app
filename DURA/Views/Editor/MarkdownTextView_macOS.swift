@@ -16,6 +16,7 @@ struct MarkdownTextView: NSViewRepresentable {
     var theme: ReaderTheme = .light
     var highlights: [Highlight] = []
     var onHighlightCreated: ((Highlight) -> Void)?
+    var onAnnotationRequest: ((String, Int, Int) -> Void)?
     var onScrollProgressChanged: ((Double) -> Void)?
 
     func makeCoordinator() -> Coordinator {
@@ -73,6 +74,12 @@ struct MarkdownTextView: NSViewRepresentable {
                 color: color
             )
             coordinator.parent.onHighlightCreated?(highlight)
+        }
+
+        textView.onAnnotationRequest = { range in
+            let bodyNS = textView.string as NSString
+            let anchorText = bodyNS.substring(with: range)
+            coordinator.parent.onAnnotationRequest?(anchorText, range.location, range.length)
         }
 
         scrollView.documentView = textView

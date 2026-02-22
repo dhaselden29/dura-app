@@ -9,6 +9,7 @@ struct BlockEditorView: View {
     var isReadOnly: Bool = false
     var highlights: [Highlight] = []
     var onHighlightCreated: ((Highlight) -> Void)?
+    var onAnnotationRequest: ((String, Int, Int) -> Void)?
     var onScrollProgressChanged: ((Double) -> Void)?
 
     @State private var editorMode: EditorMode = .richText
@@ -48,6 +49,7 @@ struct BlockEditorView: View {
                 theme: theme,
                 highlights: highlights,
                 onHighlightCreated: onHighlightCreated,
+                onAnnotationRequest: onAnnotationRequest,
                 onScrollProgressChanged: onScrollProgressChanged
             )
 
