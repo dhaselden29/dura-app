@@ -271,6 +271,13 @@ final class DataService: @unchecked Sendable {
         bookmark.tags?.removeAll(where: { $0.id == tag.id })
     }
 
+    @discardableResult
+    func createBookmarkFromNote(_ note: Note) -> Bookmark {
+        let url = note.sourceURL ?? "dura://note/\(note.id.uuidString)"
+        let excerpt = note.body.prefix(200).isEmpty ? nil : String(note.body.prefix(200))
+        return createBookmark(url: url, title: note.title, excerpt: excerpt, tags: note.tags)
+    }
+
     func deleteBookmark(_ bookmark: Bookmark) {
         modelContext.delete(bookmark)
     }

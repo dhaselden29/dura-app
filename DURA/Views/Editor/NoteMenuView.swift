@@ -92,6 +92,12 @@ struct NoteMenuModifier: ViewModifier {
                 Label("Highlights (\(note.highlights.count))", systemImage: "highlighter")
             }
 
+            Button {
+                dataService.createBookmarkFromNote(note)
+            } label: {
+                Label("Save to Reading List", systemImage: "bookmark.fill")
+            }
+
             Divider()
 
             Menu("Export As...") {
