@@ -14,6 +14,8 @@ struct NoteDetailView: View {
     @State private var lastKnownTitle: String?
     @State private var lastKnownBody: String?
 
+    @State private var bodyFocusRequested = false
+
     // Export state
     @State private var exportProgress: Double = 0
     @State private var exportError: String?
@@ -40,13 +42,16 @@ struct NoteDetailView: View {
                 .textFieldStyle(.plain)
                 .padding(.horizontal)
                 .padding(.top, 12)
+                .onSubmit {
+                    bodyFocusRequested = true
+                }
 
             Divider()
                 .padding(.horizontal)
                 .padding(.vertical, 8)
 
             // Block editor
-            BlockEditorView(markdown: $note.body)
+            BlockEditorView(markdown: $note.body, requestFocus: $bodyFocusRequested)
 
             // Status bar
             statusBar

@@ -98,6 +98,7 @@ final class EditorTextView: NSTextView {
 struct MarkdownTextView: NSViewRepresentable {
     @Binding var text: String
     @Binding var formatAction: FormatAction?
+    @Binding var requestFocus: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -164,6 +165,14 @@ struct MarkdownTextView: NSViewRepresentable {
                 textView.applyFormat(action)
             }
         }
+
+        // Handle focus request
+        if requestFocus {
+            DispatchQueue.main.async {
+                requestFocus = false
+                textView.window?.makeFirstResponder(textView)
+            }
+        }
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -193,6 +202,7 @@ import UIKit
 struct MarkdownTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var formatAction: FormatAction?
+    @Binding var requestFocus: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -228,6 +238,14 @@ struct MarkdownTextView: UIViewRepresentable {
             DispatchQueue.main.async {
                 formatAction = nil
                 applyFormat(action, to: textView)
+            }
+        }
+
+        // Handle focus request
+        if requestFocus {
+            DispatchQueue.main.async {
+                requestFocus = false
+                textView.becomeFirstResponder()
             }
         }
     }

@@ -4,7 +4,8 @@ import SwiftUI
 /// editing; toggle mode shows a rich block-based preview (read-only).
 struct BlockEditorView: View {
     @Binding var markdown: String
-    @State private var editorMode: EditorMode = .markdown
+    @Binding var requestFocus: Bool
+    @State private var editorMode: EditorMode = .richText
     @State private var formatAction: FormatAction?
 
     private enum EditorMode: String, CaseIterable {
@@ -19,10 +20,15 @@ struct BlockEditorView: View {
             if showPreview {
                 previewMode
             } else {
-                MarkdownTextView(text: $markdown, formatAction: $formatAction)
+                MarkdownTextView(text: $markdown, formatAction: $formatAction, requestFocus: $requestFocus)
             }
 
             editorToolbar
+        }
+        .onChange(of: requestFocus) {
+            if requestFocus && editorMode == .richText {
+                editorMode = .markdown
+            }
         }
     }
 
