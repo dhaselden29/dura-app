@@ -1,21 +1,16 @@
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
 
 struct NoteListContentView: View {
     @Binding var selectedNote: Note?
     let sidebarSelection: SidebarItem?
     let dataService: DataService
 
-    @Query(sort: \Note.modifiedAt, order: .reverse) private var allNotes: [Note]
+    @Query(filter: #Predicate<Note> { $0.noteKindRaw == "note" }, sort: \Note.modifiedAt, order: .reverse)
+    private var allNotes: [Note]
     @State private var searchText = ""
     @State private var sortOrder: NoteSortOrder = .modifiedDescending
 
-    // Import state
-    @State private var showFileImporter = false
-    @State private var importProgress: Double?
-    @State private var importError: ImportError?
-    @State private var showImportError = false
     @State private var showVoiceRecorder = false
 
     var body: some View {
@@ -62,13 +57,6 @@ struct NoteListContentView: View {
             }
 
             ToolbarItem(placement: .primaryAction) {
-                Button { showFileImporter = true } label: {
-                    Label("Import File", systemImage: "square.and.arrow.down")
-                }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
-            }
-
-            ToolbarItem(placement: .primaryAction) {
                 Button { showVoiceRecorder = true } label: {
                     Label("Record Voice Note", systemImage: "mic.circle")
                 }
@@ -93,33 +81,6 @@ struct NoteListContentView: View {
                 }
             }
         }
-        .fileImporter(
-            isPresented: $showFileImporter,
-            allowedContentTypes: [.pdf, .plainText, .markdown, .rtf, .rtfd, .image, UTType("org.openxmlformats.wordprocessingml.document")!, .mp3, .mpeg4Audio, .wav, UTType("public.aiff-audio")!, UTType("public.aac-audio")!, UTType("public.html")!, UTType(filenameExtension: "epub")!],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                if let url = urls.first {
-                    performImport(url: url)
-                }
-            case .failure(let error):
-                importError = .fileReadFailed(error.localizedDescription)
-                showImportError = true
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if let progress = importProgress {
-                ImportProgressOverlay(progress: progress)
-            }
-        }
-        .alert("Import Failed", isPresented: $showImportError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let error = importError {
-                Text(error.localizedDescription)
-            }
-        }
         .sheet(isPresented: $showVoiceRecorder) {
             VoiceRecorderView(dataService: dataService) { note in
                 selectedNote = note
@@ -138,15 +99,6 @@ struct NoteListContentView: View {
                 }
             }
         }
-        #if os(macOS)
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            let supportedExtensions = ["pdf", "txt", "md", "markdown", "rtf", "rtfd", "docx", "png", "jpg", "jpeg", "heic", "tiff", "mp3", "m4a", "wav", "aiff", "aif", "aac", "html", "htm", "epub"]
-            guard supportedExtensions.contains(url.pathExtension.lowercased()) else { return false }
-            performImport(url: url)
-            return true
-        }
-        #endif
     }
 
     // MARK: - Filtering
@@ -170,7 +122,7 @@ struct NoteListContentView: View {
             notes = notes.filter { note in
                 note.tags?.contains(where: { $0.id == tag.id }) ?? false
             }
-        case .kanban, .readingList, .podcastClips:
+        case .kanban, .readingList, .podcastClips, .allArticles:
             break
         }
 
@@ -199,31 +151,4 @@ struct NoteListContentView: View {
         selectedNote = note
     }
 
-    private func performImport(url: URL) {
-        let service = ImportService(dataService: dataService)
-        var notebook: Notebook?
-        if case .notebook(let nb) = sidebarSelection {
-            notebook = nb
-        }
-
-        importProgress = 0
-
-        Task {
-            do {
-                let note = try await service.importFile(at: url, into: notebook) { value in
-                    importProgress = value
-                }
-                selectedNote = note
-                importProgress = nil
-            } catch let error as ImportError {
-                importProgress = nil
-                importError = error
-                showImportError = true
-            } catch {
-                importProgress = nil
-                importError = .fileReadFailed(error.localizedDescription)
-                showImportError = true
-            }
-        }
-    }
 }

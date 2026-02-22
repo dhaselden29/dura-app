@@ -6,6 +6,7 @@ struct NoteMenuModifier: ViewModifier {
     @Bindable var note: Note
     let dataService: DataService
     @Binding var showHighlightsPanel: Bool
+    @Binding var showAnnotationSidebar: Bool
 
     @State private var exportProgress: Double = 0
     @State private var exportError: String?
@@ -74,108 +75,175 @@ struct NoteMenuModifier: ViewModifier {
 
     private var menu: some View {
         Menu {
+            if note.isArticle {
+                articleMenuItems
+            } else {
+                noteMenuItems
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
+        }
+    }
+
+    // MARK: - Article Menu
+
+    @ViewBuilder
+    private var articleMenuItems: some View {
+        Button {
+            showAnnotationSidebar.toggle()
+        } label: {
+            Label(showAnnotationSidebar ? "Hide Annotations" : "Show Annotations", systemImage: "text.bubble")
+        }
+
+        Button {
+            showHighlightsPanel = true
+        } label: {
+            Label("Highlights (\(note.highlights.count))", systemImage: "highlighter")
+        }
+
+        Divider()
+
+        Button {
+            if note.isInReadingList {
+                dataService.removeFromReadingList(note)
+            } else {
+                dataService.addToReadingList(note)
+            }
+        } label: {
+            Label(
+                note.isInReadingList ? "Remove from Reading List" : "Add to Reading List",
+                systemImage: note.isInReadingList ? "bookmark.slash" : "bookmark"
+            )
+        }
+
+        if let urlString = note.sourceURL, URL(string: urlString) != nil {
             Button {
-                dataService.togglePin(note)
+                if let url = URL(string: urlString) {
+                    #if os(macOS)
+                    NSWorkspace.shared.open(url)
+                    #else
+                    UIApplication.shared.open(url)
+                    #endif
+                }
             } label: {
-                Label(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin")
+                Label("Open Source URL", systemImage: "safari")
+            }
+        }
+
+        Divider()
+
+        Button {
+            dataService.togglePin(note)
+        } label: {
+            Label(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            dataService.deleteNote(note)
+        } label: {
+            Label("Delete Article", systemImage: "trash")
+        }
+    }
+
+    // MARK: - Note Menu
+
+    @ViewBuilder
+    private var noteMenuItems: some View {
+        Button {
+            dataService.togglePin(note)
+        } label: {
+            Label(note.isPinned ? "Unpin" : "Pin", systemImage: note.isPinned ? "pin.slash" : "pin")
+        }
+
+        Button {
+            dataService.toggleFavorite(note)
+        } label: {
+            Label(note.isFavorite ? "Unfavorite" : "Favorite", systemImage: note.isFavorite ? "star.slash" : "star")
+        }
+
+        Button {
+            showHighlightsPanel = true
+        } label: {
+            Label("Highlights (\(note.highlights.count))", systemImage: "highlighter")
+        }
+
+        Divider()
+
+        Menu("Export As...") {
+            Button {
+                performExport(format: .markdown)
+            } label: {
+                Label("Markdown (.md)", systemImage: "doc.text")
             }
 
             Button {
-                dataService.toggleFavorite(note)
+                performExport(format: .html)
             } label: {
-                Label(note.isFavorite ? "Unfavorite" : "Favorite", systemImage: note.isFavorite ? "star.slash" : "star")
+                Label("HTML (.html)", systemImage: "globe")
             }
 
             Button {
-                showHighlightsPanel = true
+                performExport(format: .pdf)
             } label: {
-                Label("Highlights (\(note.highlights.count))", systemImage: "highlighter")
+                Label("PDF (.pdf)", systemImage: "doc.richtext")
             }
+        }
 
-            Button {
-                dataService.createBookmarkFromNote(note)
-            } label: {
-                Label("Save to Reading List", systemImage: "bookmark.fill")
-            }
-
-            Divider()
-
-            Menu("Export As...") {
+        if note.isDraft {
+            Menu("Publish to WordPress") {
                 Button {
-                    performExport(format: .markdown)
+                    publishToWordPress(asDraft: false)
                 } label: {
-                    Label("Markdown (.md)", systemImage: "doc.text")
+                    Label("Publish", systemImage: "paperplane")
                 }
 
                 Button {
-                    performExport(format: .html)
+                    publishToWordPress(asDraft: true)
                 } label: {
-                    Label("HTML (.html)", systemImage: "globe")
-                }
-
-                Button {
-                    performExport(format: .pdf)
-                } label: {
-                    Label("PDF (.pdf)", systemImage: "doc.richtext")
+                    Label("Save as WP Draft", systemImage: "doc.text")
                 }
             }
+        }
 
-            if note.isDraft {
-                Menu("Publish to WordPress") {
+        Divider()
+
+        if note.isDraft {
+            Menu("Kanban Status") {
+                ForEach(KanbanStatus.boardStatuses) { status in
                     Button {
-                        publishToWordPress(asDraft: false)
+                        dataService.setKanbanStatus(status, for: note)
                     } label: {
-                        Label("Publish", systemImage: "paperplane")
-                    }
-
-                    Button {
-                        publishToWordPress(asDraft: true)
-                    } label: {
-                        Label("Save as WP Draft", systemImage: "doc.text")
-                    }
-                }
-            }
-
-            Divider()
-
-            if note.isDraft {
-                Menu("Kanban Status") {
-                    ForEach(KanbanStatus.boardStatuses) { status in
-                        Button {
-                            dataService.setKanbanStatus(status, for: note)
-                        } label: {
-                            HStack {
-                                Label(status.displayName, systemImage: status.iconName)
-                                if note.kanbanStatus == status {
-                                    Image(systemName: "checkmark")
-                                }
+                        HStack {
+                            Label(status.displayName, systemImage: status.iconName)
+                            if note.kanbanStatus == status {
+                                Image(systemName: "checkmark")
                             }
                         }
                     }
                 }
-
-                Button {
-                    dataService.demoteFromDraft(note)
-                } label: {
-                    Label("Remove from Drafts", systemImage: "doc.text.below.ecg")
-                }
-            } else {
-                Button {
-                    dataService.promoteToDraft(note)
-                } label: {
-                    Label("Promote to Draft", systemImage: "doc.text")
-                }
             }
 
-            Divider()
-
-            Button(role: .destructive) {
-                dataService.deleteNote(note)
+            Button {
+                dataService.demoteFromDraft(note)
             } label: {
-                Label("Delete Note", systemImage: "trash")
+                Label("Remove from Drafts", systemImage: "doc.text.below.ecg")
             }
+        } else {
+            Button {
+                dataService.promoteToDraft(note)
+            } label: {
+                Label("Promote to Draft", systemImage: "doc.text")
+            }
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            dataService.deleteNote(note)
         } label: {
-            Label("More", systemImage: "ellipsis.circle")
+            Label("Delete Note", systemImage: "trash")
         }
     }
 
@@ -249,7 +317,7 @@ struct NoteMenuModifier: ViewModifier {
 }
 
 extension View {
-    func noteMenu(note: Note, dataService: DataService, showHighlightsPanel: Binding<Bool>) -> some View {
-        modifier(NoteMenuModifier(note: note, dataService: dataService, showHighlightsPanel: showHighlightsPanel))
+    func noteMenu(note: Note, dataService: DataService, showHighlightsPanel: Binding<Bool>, showAnnotationSidebar: Binding<Bool>) -> some View {
+        modifier(NoteMenuModifier(note: note, dataService: dataService, showHighlightsPanel: showHighlightsPanel, showAnnotationSidebar: showAnnotationSidebar))
     }
 }

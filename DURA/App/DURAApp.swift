@@ -46,6 +46,9 @@ struct DURAApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.dark)
+                .onAppear {
+                    runMigrationIfNeeded()
+                }
         }
         .modelContainer(sharedModelContainer)
 
@@ -56,5 +59,15 @@ struct DURAApp: App {
         }
         .modelContainer(sharedModelContainer)
         #endif
+    }
+
+    @MainActor
+    private func runMigrationIfNeeded() {
+        let key = "hasRunArticleNoteKindMigration"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        let context = sharedModelContainer.mainContext
+        let ds = DataService(modelContext: context)
+        ds.migrateToArticleNoteKinds()
+        UserDefaults.standard.set(true, forKey: key)
     }
 }

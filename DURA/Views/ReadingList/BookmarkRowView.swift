@@ -12,27 +12,23 @@ struct BookmarkRowView: View {
     @State private var newTagName = ""
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            // Thumbnail
-            thumbnailView
-                .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+        HStack(spacing: 8) {
+            // Unread indicator (analogous to pin indicator in NoteRowView)
+            if !bookmark.isRead {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.blue)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
-                // Title + domain
                 HStack {
                     Text(bookmark.title.isEmpty ? bookmark.url : bookmark.title)
                         .font(.headline)
                         .lineLimit(1)
 
                     Spacer()
-
-                    Text(bookmark.domain)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
-                // Excerpt
                 if let excerpt = bookmark.excerpt, !excerpt.isEmpty {
                     Text(String(excerpt.prefix(120)))
                         .font(.subheadline)
@@ -40,31 +36,21 @@ struct BookmarkRowView: View {
                         .lineLimit(2)
                 }
 
-                // Metadata row
                 HStack(spacing: 8) {
-                    // Read/unread indicator
-                    Image(systemName: bookmark.isRead ? "circle" : "circle.fill")
-                        .font(.system(size: 8))
-                        .foregroundStyle(bookmark.isRead ? Color.secondary : Color.blue)
-
-                    Text(bookmark.addedAt, style: .relative)
-                        .font(.caption2)
+                    Label(bookmark.domain, systemImage: "globe")
+                        .font(.caption)
                         .foregroundStyle(.tertiary)
 
                     if let tags = bookmark.tags, !tags.isEmpty {
-                        ForEach(tags.prefix(3)) { tag in
-                            Text(tag.name)
-                                .font(.caption2)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.quaternary)
-                                .clipShape(Capsule())
-                        }
+                        Text(tags.prefix(3).map { "#\($0.name)" }.joined(separator: " "))
+                            .font(.caption)
+                            .foregroundStyle(.blue.opacity(0.7))
                     }
                 }
             }
         }
         .padding(.vertical, 2)
+        .contentShape(Rectangle())
         .contextMenu {
             Button {
                 openInBrowser()
@@ -100,48 +86,6 @@ struct BookmarkRowView: View {
         .popover(isPresented: $showingTagPicker) {
             tagPicker
         }
-    }
-
-    // MARK: - Thumbnail
-
-    @ViewBuilder
-    private var thumbnailView: some View {
-        if let data = bookmark.thumbnailData {
-            #if canImport(AppKit)
-            if let image = NSImage(data: data) {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                thumbnailPlaceholder
-            }
-            #else
-            if let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                thumbnailPlaceholder
-            }
-            #endif
-        } else {
-            thumbnailPlaceholder
-        }
-    }
-
-    private var thumbnailPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 6)
-            .fill(.quaternary)
-            .overlay {
-                Text(domainInitial)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-    }
-
-    private var domainInitial: String {
-        let domain = bookmark.domain
-        return domain.isEmpty ? "?" : String(domain.prefix(1)).uppercased()
     }
 
     // MARK: - Tag Picker

@@ -15,6 +15,9 @@ final class Note {
     var isFavorite: Bool = false
     var isBookmark: Bool = false
     var kanbanStatusRaw: String = KanbanStatus.note.rawValue
+    var noteKindRaw: String = NoteKind.note.rawValue
+    var isInReadingList: Bool = false
+    var readingListAddedAt: Date?
     var draftMetadataData: Data?
     var highlightsData: Data?
     var readingProgressData: Data?
@@ -38,18 +41,28 @@ final class Note {
         title: String = "",
         body: String = "",
         source: ImportSource = .manual,
+        kind: NoteKind = .note,
         notebook: Notebook? = nil
     ) {
         self.id = UUID()
         self.title = title
         self.body = body
         self.sourceRaw = source.rawValue
+        self.noteKindRaw = kind.rawValue
         self.notebook = notebook
         self.createdAt = Date()
         self.modifiedAt = Date()
     }
 
     // MARK: - Computed Properties
+
+    var noteKind: NoteKind {
+        get { NoteKind(rawValue: noteKindRaw) ?? .note }
+        set { noteKindRaw = newValue.rawValue }
+    }
+
+    var isArticle: Bool { noteKind == .article }
+    var isNote: Bool { noteKind == .note }
 
     var source: ImportSource {
         get { ImportSource(rawValue: sourceRaw) ?? .manual }

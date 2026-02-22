@@ -11,8 +11,8 @@ struct SidebarView: View {
     @Query(sort: \Tag.name)
     private var tags: [Tag]
 
-    @Query(filter: #Predicate<Bookmark> { !$0.isRead })
-    private var unreadBookmarks: [Bookmark]
+    @Query(filter: #Predicate<Note> { $0.noteKindRaw == "article" && $0.isInReadingList })
+    private var readingListArticles: [Note]
 
     @State private var isAddingNotebook = false
     @State private var newNotebookName = ""
@@ -23,7 +23,7 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $selection) {
-            Section("Library") {
+            Section("Notes") {
                 Label("All Notes", systemImage: "tray.full")
                     .tag(SidebarItem.allNotes)
                 Label("Inbox", systemImage: "tray.and.arrow.down")
@@ -32,6 +32,14 @@ struct SidebarView: View {
                     .tag(SidebarItem.favorites)
                 Label("Drafts", systemImage: "doc.text")
                     .tag(SidebarItem.drafts)
+            }
+
+            Section("Articles") {
+                Label("All Articles", systemImage: "doc.richtext")
+                    .tag(SidebarItem.allArticles)
+                Label("Reading List", systemImage: "bookmark")
+                    .badge(readingListArticles.count)
+                    .tag(SidebarItem.readingList)
             }
 
             Section("Notebooks") {
@@ -69,9 +77,6 @@ struct SidebarView: View {
             Section("Workflow") {
                 Label("Kanban Board", systemImage: "rectangle.split.3x1")
                     .tag(SidebarItem.kanban)
-                Label("Reading List", systemImage: "bookmark")
-                    .tag(SidebarItem.readingList)
-                    .badge(unreadBookmarks.count)
                 Label("Podcast Clips", systemImage: "headphones")
                     .tag(SidebarItem.podcastClips)
             }

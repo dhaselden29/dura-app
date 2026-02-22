@@ -136,7 +136,8 @@ final class PodcastClipProcessor {
         let note = dataService.createNote(
             title: "\u{1F399}\u{FE0F} \(clip.episodeTitle) — \(clip.podcastName)",
             body: bodyLines.joined(separator: "\n"),
-            source: .podcast
+            source: .podcast,
+            kind: .article
         )
 
         clip.note = note

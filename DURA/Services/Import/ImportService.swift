@@ -77,6 +77,7 @@ final class ImportService {
             title: result.title,
             body: result.body,
             source: result.source,
+            kind: .article,
             notebook: targetNotebook
         )
         note.originalFormat = result.mimeType

@@ -5,7 +5,8 @@ struct KanbanBoardView: View {
     @Binding var selectedNote: Note?
     let dataService: DataService
 
-    @Query(sort: \Note.modifiedAt, order: .reverse) private var allNotes: [Note]
+    @Query(filter: #Predicate<Note> { $0.noteKindRaw == "note" }, sort: \Note.modifiedAt, order: .reverse)
+    private var allNotes: [Note]
 
     var body: some View {
         Group {

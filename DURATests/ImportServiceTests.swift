@@ -32,6 +32,8 @@ struct ImportServiceTests {
         #expect(note.title == "Test Document")
         #expect(note.body == markdown)
         #expect(note.source == .markdown)
+        #expect(note.noteKind == .article)
+        #expect(note.isArticle == true)
         #expect(note.originalFormat == "text/markdown")
         #expect(note.sourceURL != nil)
 
@@ -58,6 +60,7 @@ struct ImportServiceTests {
 
         #expect(note.notebook?.name == "Research")
         #expect(note.source == .plainText)
+        #expect(note.noteKind == .article)
     }
 
     @Test("Import unsupported type throws")
@@ -93,6 +96,7 @@ struct ImportServiceTests {
 
         #expect(note.title == "My Title Line")
         #expect(note.source == .plainText)
+        #expect(note.noteKind == .article)
     }
 
     @Test("Supported content types not empty")

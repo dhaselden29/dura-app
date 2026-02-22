@@ -19,7 +19,7 @@ final class EditorTextView: NSTextView {
             menu.insertItem(.separator(), at: 0)
 
             let highlightMenu = NSMenu()
-            for color in HighlightColor.allCases {
+            for color in HighlightColor.userColors {
                 let item = NSMenuItem(
                     title: color.displayName,
                     action: #selector(highlightWithColor(_:)),

@@ -23,9 +23,17 @@ struct HighlightsPanelView: View {
                                     .frame(width: 10, height: 10)
 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(highlight.anchorText)
-                                        .font(.caption)
-                                        .lineLimit(2)
+                                    HStack(spacing: 4) {
+                                        Text(highlight.anchorText)
+                                            .font(.caption)
+                                            .lineLimit(2)
+
+                                        if highlight.author == .ai {
+                                            Image(systemName: "sparkle")
+                                                .font(.caption2)
+                                                .foregroundStyle(.purple)
+                                        }
+                                    }
 
                                     if let annotation = highlight.annotation, !annotation.isEmpty {
                                         Text(annotation)

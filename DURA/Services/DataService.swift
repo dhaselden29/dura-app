@@ -25,27 +25,47 @@ final class DataService: @unchecked Sendable {
         title: String = "",
         body: String = "",
         source: ImportSource = .manual,
+        kind: NoteKind = .note,
         notebook: Notebook? = nil
     ) -> Note {
-        let note = Note(title: title, body: body, source: source, notebook: notebook)
+        let note = Note(title: title, body: body, source: source, kind: kind, notebook: notebook)
         modelContext.insert(note)
+        return note
+    }
+
+    @discardableResult
+    func createArticle(
+        title: String = "",
+        body: String = "",
+        source: ImportSource = .web,
+        sourceURL: String? = nil
+    ) -> Note {
+        let note = createNote(title: title, body: body, source: source, kind: .article)
+        note.sourceURL = sourceURL
         return note
     }
 
     func fetchNotes(
         sortBy: NoteSortOrder = .modifiedDescending,
+        kind: NoteKind? = nil,
         notebook: Notebook? = nil,
         tag: Tag? = nil,
         kanbanStatus: KanbanStatus? = nil,
         onlyDrafts: Bool = false,
         onlyFavorites: Bool = false,
         onlyPinned: Bool = false,
+        onlyReadingList: Bool = false,
         searchText: String = ""
     ) throws -> [Note] {
         var descriptor = FetchDescriptor<Note>()
         descriptor.sortBy = sortBy.sortDescriptors
 
         var predicates: [Predicate<Note>] = []
+
+        if let kind {
+            let kindRaw = kind.rawValue
+            predicates.append(#Predicate<Note> { $0.noteKindRaw == kindRaw })
+        }
 
         if !searchText.isEmpty {
             let search = searchText
@@ -65,6 +85,10 @@ final class DataService: @unchecked Sendable {
 
         if onlyDrafts {
             predicates.append(#Predicate<Note> { $0.draftMetadataData != nil })
+        }
+
+        if onlyReadingList {
+            predicates.append(#Predicate<Note> { $0.isInReadingList })
         }
 
         if let status = kanbanStatus {
@@ -147,6 +171,121 @@ final class DataService: @unchecked Sendable {
     func setKanbanStatus(_ status: KanbanStatus, for note: Note) {
         note.kanbanStatus = status
         note.modifiedAt = Date()
+    }
+
+    // MARK: - Reading List
+
+    func addToReadingList(_ note: Note) {
+        note.isInReadingList = true
+        note.readingListAddedAt = Date()
+        note.modifiedAt = Date()
+    }
+
+    func removeFromReadingList(_ note: Note) {
+        note.isInReadingList = false
+        note.readingListAddedAt = nil
+        note.modifiedAt = Date()
+    }
+
+    // MARK: - Annotation CRUD
+
+    func addAnnotation(to note: Note, anchorText: String, rangeStart: Int, rangeLength: Int, comment: String, color: HighlightColor = .yellow, author: HighlightAuthor = .personal) {
+        var highlights = note.highlights
+        let highlight = Highlight(
+            anchorText: anchorText,
+            rangeStart: rangeStart,
+            rangeLength: rangeLength,
+            color: color,
+            annotation: comment,
+            author: author,
+            isComment: true
+        )
+        highlights.append(highlight)
+        note.highlights = highlights
+        note.modifiedAt = Date()
+    }
+
+    func removeAnnotation(id: UUID, from note: Note) {
+        var highlights = note.highlights
+        highlights.removeAll { $0.id == id }
+        note.highlights = highlights
+        note.modifiedAt = Date()
+    }
+
+    func updateAnnotation(id: UUID, on note: Note, newComment: String) {
+        var highlights = note.highlights
+        if let index = highlights.firstIndex(where: { $0.id == id }) {
+            highlights[index].annotation = newComment
+            note.highlights = highlights
+            note.modifiedAt = Date()
+        }
+    }
+
+    // MARK: - Migration
+
+    func migrateToArticleNoteKinds() {
+        let manualRaw = ImportSource.manual.rawValue
+        let noteKindRaw = NoteKind.note.rawValue
+        let descriptor = FetchDescriptor<Note>()
+        guard let allNotes = try? modelContext.fetch(descriptor) else { return }
+
+        for note in allNotes {
+            // Only migrate notes still at default kind
+            guard note.noteKindRaw == noteKindRaw else { continue }
+            if note.sourceRaw != manualRaw {
+                note.noteKindRaw = NoteKind.article.rawValue
+            }
+        }
+
+        // Convert bookmarks to lightweight articles
+        let bookmarkDescriptor = FetchDescriptor<Bookmark>()
+        if let bookmarks = try? modelContext.fetch(bookmarkDescriptor) {
+            for bookmark in bookmarks {
+                let article = Note(
+                    title: bookmark.title,
+                    body: bookmark.excerpt ?? "",
+                    source: .web,
+                    kind: .article
+                )
+                article.sourceURL = bookmark.url
+                article.isInReadingList = true
+                article.readingListAddedAt = bookmark.addedAt
+                article.createdAt = bookmark.addedAt
+                article.modifiedAt = bookmark.addedAt
+                modelContext.insert(article)
+
+                // Copy tags
+                if let tags = bookmark.tags {
+                    article.tags = tags
+                }
+            }
+        }
+
+        try? modelContext.save()
+    }
+
+    // MARK: - Counts (Kind-aware)
+
+    func noteCount(kind: NoteKind? = nil) throws -> Int {
+        if let kind {
+            let kindRaw = kind.rawValue
+            let descriptor = FetchDescriptor<Note>(
+                predicate: #Predicate { $0.noteKindRaw == kindRaw }
+            )
+            return try modelContext.fetchCount(descriptor)
+        }
+        let descriptor = FetchDescriptor<Note>()
+        return try modelContext.fetchCount(descriptor)
+    }
+
+    func unreadArticleCount() throws -> Int {
+        let articleRaw = NoteKind.article.rawValue
+        let descriptor = FetchDescriptor<Note>(
+            predicate: #Predicate {
+                $0.noteKindRaw == articleRaw && $0.isInReadingList && $0.readingProgressData == nil
+            }
+        )
+        return try modelContext.fetchCount(descriptor)
     }
 
     // MARK: - Notebook CRUD
@@ -318,12 +457,7 @@ final class DataService: @unchecked Sendable {
         modelContext.delete(clip)
     }
 
-    // MARK: - Counts
-
-    func noteCount() throws -> Int {
-        let descriptor = FetchDescriptor<Note>()
-        return try modelContext.fetchCount(descriptor)
-    }
+    // MARK: - Legacy Counts
 
     func draftCount() throws -> Int {
         let descriptor = FetchDescriptor<Note>(

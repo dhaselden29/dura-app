@@ -104,18 +104,30 @@ enum ReaderFont: String, CaseIterable, Sendable {
 
     #if canImport(AppKit)
     func nsFont(size: CGFloat) -> NSFont {
+        nsFont(size: size, weight: .regular)
+    }
+
+    func nsFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
         switch self {
         case .system:
-            return NSFont.systemFont(ofSize: size, weight: .regular)
+            return NSFont.systemFont(ofSize: size, weight: weight)
         case .serif:
-            return NSFont(name: "New York", size: size)
+            let base = NSFont(name: "New York", size: size)
                 ?? NSFont(name: "Georgia", size: size)
-                ?? NSFont.systemFont(ofSize: size)
+                ?? NSFont.systemFont(ofSize: size, weight: weight)
+            if weight == .bold || weight == .semibold || weight == .heavy {
+                return NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)
+            }
+            return base
         case .mono:
-            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            return NSFont.monospacedSystemFont(ofSize: size, weight: weight)
         case .openDyslexic:
-            return NSFont(name: "OpenDyslexic", size: size)
-                ?? NSFont.systemFont(ofSize: size)
+            let base = NSFont(name: "OpenDyslexic", size: size)
+                ?? NSFont.systemFont(ofSize: size, weight: weight)
+            if weight == .bold || weight == .semibold || weight == .heavy {
+                return NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)
+            }
+            return base
         }
     }
     #elseif canImport(UIKit)

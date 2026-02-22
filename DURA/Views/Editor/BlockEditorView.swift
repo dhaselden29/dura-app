@@ -6,6 +6,7 @@ import SwiftUI
 struct BlockEditorView: View {
     @Binding var markdown: String
     @Binding var requestFocus: Bool
+    var isReadOnly: Bool = false
     var highlights: [Highlight] = []
     var onHighlightCreated: ((Highlight) -> Void)?
     var onScrollProgressChanged: ((Double) -> Void)?
@@ -38,6 +39,7 @@ struct BlockEditorView: View {
                 text: $markdown,
                 formatAction: $formatAction,
                 requestFocus: $requestFocus,
+                isReadOnly: isReadOnly,
                 useProportionalFont: editorMode == .richText,
                 fontSize: fontSize,
                 lineSpacing: lineSpacing,
@@ -49,7 +51,9 @@ struct BlockEditorView: View {
                 onScrollProgressChanged: onScrollProgressChanged
             )
 
-            editorToolbar
+            if !isReadOnly {
+                editorToolbar
+            }
         }
     }
 

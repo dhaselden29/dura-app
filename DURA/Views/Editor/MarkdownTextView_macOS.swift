@@ -7,6 +7,7 @@ struct MarkdownTextView: NSViewRepresentable {
     @Binding var text: String
     @Binding var formatAction: FormatAction?
     @Binding var requestFocus: Bool
+    var isReadOnly: Bool = false
     var useProportionalFont: Bool = false
     var fontSize: CGFloat = 17
     var lineSpacing: CGFloat = 6
@@ -32,7 +33,7 @@ struct MarkdownTextView: NSViewRepresentable {
         let textView = EditorTextView()
         textView.isRichText = false
         textView.allowsUndo = true
-        textView.isEditable = true
+        textView.isEditable = !isReadOnly
         textView.isSelectable = true
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
@@ -88,6 +89,7 @@ struct MarkdownTextView: NSViewRepresentable {
         // Set initial text
         textView.string = text
         applyHighlights(to: textView)
+        applySyntaxHighlighting(to: textView)
 
         return scrollView
     }
@@ -111,6 +113,9 @@ struct MarkdownTextView: NSViewRepresentable {
 
         // Keep coordinator's parent reference current for callbacks
         context.coordinator.parent = self
+
+        // Update editability
+        textView.isEditable = !isReadOnly
 
         // Update theme colors
         textView.textColor = theme.textColor
@@ -163,8 +168,9 @@ struct MarkdownTextView: NSViewRepresentable {
             context.coordinator.resetProgress()
         }
 
-        // Apply highlights
+        // Apply highlights and syntax highlighting
         applyHighlights(to: textView)
+        applySyntaxHighlighting(to: textView)
 
         // Apply pending toolbar format action
         if let action = formatAction {
@@ -208,6 +214,115 @@ struct MarkdownTextView: NSViewRepresentable {
         }
     }
 
+    // MARK: - Syntax Highlighting
+
+    private func applySyntaxHighlighting(to textView: NSTextView) {
+        guard useProportionalFont else { return }
+        guard let textStorage = textView.textStorage else { return }
+        let string = textView.string
+        let ns = string as NSString
+        let full = NSRange(location: 0, length: ns.length)
+        guard full.length > 0 else { return }
+
+        let markerColor = theme.textColor.withAlphaComponent(0.3)
+        let codeBg = NSColor.quaternaryLabelColor
+        let monoFont = NSFont.monospacedSystemFont(ofSize: fontSize - 1, weight: .regular)
+        let linkColor = NSColor.linkColor
+
+        // --- Code blocks (``` ... ```) — processed first to prevent inner formatting ---
+        matchRegex("```.*?```", in: string, range: full, options: .dotMatchesLineSeparators) { m in
+            textStorage.addAttribute(.font, value: monoFont, range: m.range)
+            textStorage.addAttribute(.backgroundColor, value: codeBg, range: m.range)
+        }
+
+        // --- Inline code (`...`) ---
+        matchRegex("(?<!`)`(?!`)(.+?)(?<!`)`(?!`)", in: string, range: full) { m in
+            textStorage.addAttribute(.font, value: monoFont, range: m.range)
+            textStorage.addAttribute(.backgroundColor, value: codeBg, range: m.range)
+        }
+
+        // --- Headings ---
+        matchRegex("^(#{1,6})\\s+(.+)$", in: string, range: full, options: .anchorsMatchLines) { m in
+            let level = m.range(at: 1).length
+            let headingSize = fontSize + CGFloat(7 - level) * 3
+            let weight: NSFont.Weight = level <= 2 ? .bold : .semibold
+            let headingFont = fontFamily.nsFont(size: headingSize, weight: weight)
+            textStorage.addAttribute(.font, value: headingFont, range: m.range)
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range(at: 1))
+        }
+
+        // --- Bold (**text** or __text__) ---
+        matchRegex("(\\*\\*|__)(.+?)\\1", in: string, range: full) { m in
+            let baseFont = resolveFont()
+            let bold = NSFontManager.shared.convert(baseFont, toHaveTrait: .boldFontMask)
+            textStorage.addAttribute(.font, value: bold, range: m.range(at: 2))
+            let open = m.range(at: 1)
+            let close = NSRange(location: m.range.upperBound - open.length, length: open.length)
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: open)
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: close)
+        }
+
+        // --- Italic (*text* or _text_) ---
+        matchRegex("(?<![*_])([*_])(?![*_])(.+?)(?<![*_])\\1(?![*_])", in: string, range: full) { m in
+            let baseFont = resolveFont()
+            let italic = NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
+            textStorage.addAttribute(.font, value: italic, range: m.range(at: 2))
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range(at: 1))
+            let close = NSRange(location: m.range.upperBound - 1, length: 1)
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: close)
+        }
+
+        // --- Strikethrough (~~text~~) ---
+        matchRegex("(~~)(.+?)(~~)", in: string, range: full) { m in
+            textStorage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: m.range)
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range(at: 1))
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range(at: 3))
+        }
+
+        // --- Links [text](url) ---
+        matchRegex("(\\[)([^\\]]+)(\\]\\([^)]+\\))", in: string, range: full) { m in
+            textStorage.addAttribute(.foregroundColor, value: linkColor, range: m.range(at: 2))
+            textStorage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: m.range(at: 2))
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range(at: 1))
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range(at: 3))
+        }
+
+        // --- Images ![alt](url) — dim entire syntax ---
+        matchRegex("!\\[[^\\]]*\\]\\([^)]+\\)", in: string, range: full) { m in
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range)
+        }
+
+        // --- Blockquotes (> text) ---
+        matchRegex("^(>+)\\s?(.*)", in: string, range: full, options: .anchorsMatchLines) { m in
+            textStorage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: m.range(at: 2))
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range(at: 1))
+        }
+
+        // --- Horizontal rules (---, ***, ___) ---
+        matchRegex("^[-*_]{3,}$", in: string, range: full, options: .anchorsMatchLines) { m in
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: m.range)
+        }
+
+        // --- List bullets (- , * , + , 1. ) — dim the marker ---
+        matchRegex("^(\\s*)([-*+]|\\d+\\.)( )", in: string, range: full, options: .anchorsMatchLines) { m in
+            let bulletRange = m.range(at: 2)
+            textStorage.addAttribute(.foregroundColor, value: markerColor, range: bulletRange)
+        }
+    }
+
+    private func matchRegex(
+        _ pattern: String,
+        in string: String,
+        range: NSRange,
+        options: NSRegularExpression.Options = [],
+        handler: (NSTextCheckingResult) -> Void
+    ) {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else { return }
+        for match in regex.matches(in: string, range: range) {
+            handler(match)
+        }
+    }
+
     // MARK: - Coordinator
 
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -234,6 +349,20 @@ struct MarkdownTextView: NSViewRepresentable {
             guard let textView = notification.object as? NSTextView else { return }
             isUpdating = true
             parent.text = textView.string
+
+            // Re-apply base font + syntax highlighting after edit
+            if parent.useProportionalFont {
+                let baseFont = parent.resolveFont()
+                let style = parent.makeParagraphStyle()
+                let full = NSRange(location: 0, length: (textView.string as NSString).length)
+                if full.length > 0 {
+                    textView.textStorage?.addAttribute(.font, value: baseFont, range: full)
+                    textView.textStorage?.addAttribute(.paragraphStyle, value: style, range: full)
+                    textView.textStorage?.addAttribute(.foregroundColor, value: parent.theme.textColor, range: full)
+                }
+                parent.applySyntaxHighlighting(to: textView)
+            }
+
             DispatchQueue.main.async { [weak self] in
                 self?.isUpdating = false
             }

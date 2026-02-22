@@ -71,8 +71,40 @@ struct NoteMetadataBar: View {
                     tagPicker
                 }
 
-                // Draft badge
-                if note.isDraft {
+                // Article badge
+                if note.isArticle {
+                    Text("Article")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.orange.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+
+                // Reading list badge
+                if note.isInReadingList {
+                    Label("Reading List", systemImage: "bookmark.fill")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.blue.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+
+                // Source badge
+                if note.source != .manual {
+                    Label(note.source.displayName, systemImage: "arrow.down.circle")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.gray.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+
+                // Draft badge (notes only)
+                if note.isNote && note.isDraft {
                     Text(note.kanbanStatus.displayName)
                         .font(.caption)
                         .fontWeight(.medium)
@@ -82,8 +114,8 @@ struct NoteMetadataBar: View {
                         .clipShape(Capsule())
                 }
 
-                // WordPress status badge
-                if let meta = note.draftMetadata, meta.wordpressPostId != nil {
+                // WordPress status badge (notes only)
+                if note.isNote, let meta = note.draftMetadata, meta.wordpressPostId != nil {
                     Label(meta.wordpressStatus.displayName, systemImage: "globe")
                         .font(.caption)
                         .fontWeight(.medium)

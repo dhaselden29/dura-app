@@ -25,8 +25,12 @@ struct ContentView: View {
                             selectedNote: $selectedNote,
                             dataService: dataService
                         )
-                    } else if sidebarSelection == .readingList {
-                        BookmarkListView(dataService: dataService)
+                    } else if sidebarSelection == .allArticles || sidebarSelection == .readingList {
+                        ArticleListView(
+                            selectedNote: $selectedNote,
+                            readingListOnly: sidebarSelection == .readingList,
+                            dataService: dataService
+                        )
                     } else if sidebarSelection == .podcastClips {
                         PodcastClipsListView(
                             dataService: dataService,
@@ -99,6 +103,7 @@ enum SidebarItem: Hashable {
     case favorites
     case drafts
     case kanban
+    case allArticles
     case readingList
     case podcastClips
     case notebook(Notebook)
@@ -111,6 +116,7 @@ enum SidebarItem: Hashable {
         case .favorites: "Favorites"
         case .drafts: "Drafts"
         case .kanban: "Kanban Board"
+        case .allArticles: "All Articles"
         case .readingList: "Reading List"
         case .podcastClips: "Podcast Clips"
         case .notebook(let nb): nb.name
@@ -125,6 +131,7 @@ enum SidebarItem: Hashable {
         case .favorites: "star"
         case .drafts: "doc.text"
         case .kanban: "rectangle.split.3x1"
+        case .allArticles: "doc.richtext"
         case .readingList: "bookmark"
         case .podcastClips: "headphones"
         case .notebook(let nb): nb.icon ?? "folder"

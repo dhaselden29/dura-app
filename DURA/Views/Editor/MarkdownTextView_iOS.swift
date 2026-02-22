@@ -7,6 +7,7 @@ struct MarkdownTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var formatAction: FormatAction?
     @Binding var requestFocus: Bool
+    var isReadOnly: Bool = false
     var useProportionalFont: Bool = false
     var fontSize: CGFloat = 17
     var lineSpacing: CGFloat = 6
@@ -23,7 +24,7 @@ struct MarkdownTextView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
-        textView.isEditable = true
+        textView.isEditable = !isReadOnly
         textView.isSelectable = true
         textView.font = resolveFont()
         textView.textColor = theme.textColor
@@ -49,6 +50,9 @@ struct MarkdownTextView: UIViewRepresentable {
     func updateUIView(_ textView: UITextView, context: Context) {
         // Keep coordinator's parent reference current for callbacks
         context.coordinator.parent = self
+
+        // Update editability
+        textView.isEditable = !isReadOnly
 
         // Update theme colors
         textView.textColor = theme.textColor
