@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The editor container. Default mode uses a native text view for natural markdown
-/// editing; toggle mode shows a rich block-based preview (read-only).
+/// The editor container. Both modes are editable:
+/// - **Rich Text** uses a proportional font for comfortable reading/writing.
+/// - **Markdown** uses a monospaced font for precise markdown editing.
 struct BlockEditorView: View {
     @Binding var markdown: String
     @Binding var requestFocus: Bool
@@ -13,46 +14,17 @@ struct BlockEditorView: View {
         case richText = "Rich Text"
     }
 
-    private var showPreview: Bool { editorMode == .richText }
-
     var body: some View {
         VStack(spacing: 0) {
-            if showPreview {
-                previewMode
-            } else {
-                MarkdownTextView(text: $markdown, formatAction: $formatAction, requestFocus: $requestFocus)
-            }
+            MarkdownTextView(
+                text: $markdown,
+                formatAction: $formatAction,
+                requestFocus: $requestFocus,
+                useProportionalFont: editorMode == .richText
+            )
 
             editorToolbar
         }
-        .onChange(of: requestFocus) {
-            if requestFocus && editorMode == .richText {
-                editorMode = .markdown
-            }
-        }
-    }
-
-    // MARK: - Preview Mode (read-only block rendering)
-
-    private var previewMode: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 4) {
-                ForEach(BlockParser.parse(markdown)) { block in
-                    BlockRowView(
-                        block: .constant(block),
-                        isSelected: false,
-                        onTap: {},
-                        onContentChange: { _ in },
-                        onDelete: {},
-                        onReturn: {},
-                        attachments: nil
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-        }
-        .environment(\.isBlockPreview, true)
     }
 
     // MARK: - Toolbar
@@ -67,22 +39,20 @@ struct BlockEditorView: View {
             .pickerStyle(.segmented)
             .frame(width: 200)
 
-            if !showPreview {
-                Divider()
-                    .frame(height: 16)
+            Divider()
+                .frame(height: 16)
 
-                formatButton(icon: "bold", tooltip: "Bold (Cmd+B)") {
-                    formatAction = .bold
-                }
-                formatButton(icon: "italic", tooltip: "Italic (Cmd+I)") {
-                    formatAction = .italic
-                }
-                formatButton(icon: "strikethrough", tooltip: "Strikethrough (Cmd+Shift+X)") {
-                    formatAction = .strikethrough
-                }
-                formatButton(icon: "chevron.left.forwardslash.chevron.right", tooltip: "Code (Cmd+E)") {
-                    formatAction = .inlineCode
-                }
+            formatButton(icon: "bold", tooltip: "Bold (Cmd+B)") {
+                formatAction = .bold
+            }
+            formatButton(icon: "italic", tooltip: "Italic (Cmd+I)") {
+                formatAction = .italic
+            }
+            formatButton(icon: "strikethrough", tooltip: "Strikethrough (Cmd+Shift+X)") {
+                formatAction = .strikethrough
+            }
+            formatButton(icon: "chevron.left.forwardslash.chevron.right", tooltip: "Code (Cmd+E)") {
+                formatAction = .inlineCode
             }
 
             Spacer()

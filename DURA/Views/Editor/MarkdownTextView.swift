@@ -99,6 +99,7 @@ struct MarkdownTextView: NSViewRepresentable {
     @Binding var text: String
     @Binding var formatAction: FormatAction?
     @Binding var requestFocus: Bool
+    var useProportionalFont: Bool = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -121,11 +122,12 @@ struct MarkdownTextView: NSViewRepresentable {
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
-        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.font = Self.font(proportional: useProportionalFont)
         textView.textColor = NSColor.labelColor
         textView.backgroundColor = .clear
         textView.drawsBackground = false
         textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.defaultParagraphStyle = Self.paragraphStyle(proportional: useProportionalFont)
 
         // Allow the text view to expand horizontally within the scroll view
         textView.isHorizontallyResizable = false
@@ -148,8 +150,35 @@ struct MarkdownTextView: NSViewRepresentable {
         return scrollView
     }
 
+    private static func font(proportional: Bool) -> NSFont {
+        if proportional {
+            return NSFont.systemFont(ofSize: 15, weight: .regular)
+        } else {
+            return NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        }
+    }
+
+    private static func paragraphStyle(proportional: Bool) -> NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = proportional ? 4 : 0
+        return style
+    }
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? EditorTextView else { return }
+
+        // Switch font when mode changes
+        let expectedFont = Self.font(proportional: useProportionalFont)
+        if textView.font?.fontName != expectedFont.fontName || textView.font?.pointSize != expectedFont.pointSize {
+            let selectedRanges = textView.selectedRanges
+            textView.font = expectedFont
+            textView.defaultParagraphStyle = Self.paragraphStyle(proportional: useProportionalFont)
+            // Re-apply font to existing text
+            let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+            textView.textStorage?.addAttribute(.font, value: expectedFont, range: fullRange)
+            textView.textStorage?.addAttribute(.paragraphStyle, value: Self.paragraphStyle(proportional: useProportionalFont), range: fullRange)
+            textView.selectedRanges = selectedRanges
+        }
 
         // Sync text from binding → view (avoid loop via guard)
         if !context.coordinator.isUpdating && textView.string != text {
@@ -203,6 +232,7 @@ struct MarkdownTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var formatAction: FormatAction?
     @Binding var requestFocus: Bool
+    var useProportionalFont: Bool = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -212,7 +242,7 @@ struct MarkdownTextView: UIViewRepresentable {
         let textView = UITextView()
         textView.isEditable = true
         textView.isSelectable = true
-        textView.font = UIFont.monospacedSystemFont(ofSize: UIFont.systemFontSize, weight: .regular)
+        textView.font = Self.font(proportional: useProportionalFont)
         textView.textColor = UIColor.label
         textView.backgroundColor = .clear
         textView.autocapitalizationType = .sentences
@@ -225,7 +255,21 @@ struct MarkdownTextView: UIViewRepresentable {
         return textView
     }
 
+    private static func font(proportional: Bool) -> UIFont {
+        if proportional {
+            return UIFont.systemFont(ofSize: 15, weight: .regular)
+        } else {
+            return UIFont.monospacedSystemFont(ofSize: UIFont.systemFontSize, weight: .regular)
+        }
+    }
+
     func updateUIView(_ textView: UITextView, context: Context) {
+        // Switch font when mode changes
+        let expectedFont = Self.font(proportional: useProportionalFont)
+        if textView.font != expectedFont {
+            textView.font = expectedFont
+        }
+
         // Sync text from binding → view (avoid loop via guard)
         if !context.coordinator.isUpdating && textView.text != text {
             let selectedRange = textView.selectedRange
