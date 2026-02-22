@@ -75,6 +75,14 @@ struct ContentView: View {
             clipWatcher?.stopWatching()
         }
         #endif
+        #if os(macOS)
+        .onDeleteCommand {
+            if let note = selectedNote, let dataService {
+                selectedNote = nil
+                dataService.deleteNote(note)
+            }
+        }
+        #endif
         .toolbar {
             #if os(macOS)
             ToolbarItem(placement: .automatic) {
