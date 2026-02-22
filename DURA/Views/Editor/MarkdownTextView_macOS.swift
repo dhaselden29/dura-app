@@ -17,6 +17,7 @@ struct MarkdownTextView: NSViewRepresentable {
     var highlights: [Highlight] = []
     var onHighlightCreated: ((Highlight) -> Void)?
     var onAnnotationRequest: ((String, Int, Int) -> Void)?
+    var focusedHighlightID: UUID?
     var onScrollProgressChanged: ((Double) -> Void)?
 
     func makeCoordinator() -> Coordinator {
@@ -179,6 +180,30 @@ struct MarkdownTextView: NSViewRepresentable {
         applyHighlights(to: textView)
         applySyntaxHighlighting(to: textView)
 
+        // Scroll to and flash focused annotation
+        if context.coordinator.lastFocusedHighlightID != focusedHighlightID {
+            context.coordinator.lastFocusedHighlightID = focusedHighlightID
+            if let focusID = focusedHighlightID,
+               let highlight = highlights.first(where: { $0.id == focusID }) {
+                let bodyNS = textView.string as NSString
+                var range = NSRange(location: highlight.rangeStart, length: highlight.rangeLength)
+                if range.location + range.length > bodyNS.length {
+                    let searchRange = bodyNS.range(of: highlight.anchorText)
+                    if searchRange.location != NSNotFound {
+                        range = searchRange
+                    }
+                }
+                if range.location + range.length <= bodyNS.length {
+                    textView.scrollRangeToVisible(range)
+                    textView.textStorage?.addAttribute(
+                        .backgroundColor,
+                        value: NSColor.systemOrange.withAlphaComponent(0.4),
+                        range: range
+                    )
+                }
+            }
+        }
+
         // Apply pending toolbar format action
         if let action = formatAction {
             DispatchQueue.main.async {
@@ -336,6 +361,7 @@ struct MarkdownTextView: NSViewRepresentable {
         var parent: MarkdownTextView
         weak var textView: EditorTextView?
         var isUpdating = false
+        var lastFocusedHighlightID: UUID?
         private var highWaterMark: Double = 0
         private var debounceTimer: Timer?
 

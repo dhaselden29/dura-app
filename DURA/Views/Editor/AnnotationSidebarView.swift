@@ -3,6 +3,7 @@ import SwiftUI
 struct AnnotationSidebarView: View {
     @Bindable var note: Note
     let dataService: DataService
+    @Binding var selectedAnnotationID: UUID?
 
     @State private var showAIAnnotations = true
     @State private var editingAnnotationID: UUID?
@@ -106,6 +107,21 @@ struct AnnotationSidebarView: View {
             }
         }
         .padding(.vertical, 2)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(selectedAnnotationID == highlight.id ? Color.accentColor.opacity(0.15) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                if selectedAnnotationID == highlight.id {
+                    selectedAnnotationID = nil
+                } else {
+                    selectedAnnotationID = highlight.id
+                }
+            }
+        }
         .contextMenu {
             Button {
                 editText = highlight.annotation ?? ""
@@ -145,6 +161,21 @@ struct AnnotationSidebarView: View {
                 }
             }
             .padding(.vertical, 2)
+            .padding(.horizontal, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(selectedAnnotationID == highlight.id ? Color.accentColor.opacity(0.15) : Color.clear)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    if selectedAnnotationID == highlight.id {
+                        selectedAnnotationID = nil
+                    } else {
+                        selectedAnnotationID = highlight.id
+                    }
+                }
+            }
         }
     }
 }

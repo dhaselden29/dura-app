@@ -10,6 +10,7 @@ struct BlockEditorView: View {
     var highlights: [Highlight] = []
     var onHighlightCreated: ((Highlight) -> Void)?
     var onAnnotationRequest: ((String, Int, Int) -> Void)?
+    var focusedHighlightID: UUID?
     var onScrollProgressChanged: ((Double) -> Void)?
 
     @State private var editorMode: EditorMode = .richText
@@ -50,6 +51,7 @@ struct BlockEditorView: View {
                 highlights: highlights,
                 onHighlightCreated: onHighlightCreated,
                 onAnnotationRequest: onAnnotationRequest,
+                focusedHighlightID: focusedHighlightID,
                 onScrollProgressChanged: onScrollProgressChanged
             )
 

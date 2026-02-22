@@ -47,7 +47,7 @@ struct SidebarView: View {
 
             Section("Notebooks") {
                 ForEach(rootNotebooks) { notebook in
-                    NotebookRow(notebook: notebook)
+                    NotebookRow(notebook: notebook, dataService: dataService)
                 }
                 .onDelete(perform: deleteNotebooks)
 
@@ -111,13 +111,14 @@ struct SidebarView: View {
 
 struct NotebookRow: View {
     let notebook: Notebook
+    let dataService: DataService
 
     var body: some View {
         let children = (notebook.children ?? []).sorted(by: { $0.sortOrder < $1.sortOrder })
         if !children.isEmpty {
             DisclosureGroup {
                 ForEach(children) { child in
-                    NotebookRow(notebook: child)
+                    NotebookRow(notebook: child, dataService: dataService)
                 }
             } label: {
                 notebookLabel
@@ -130,5 +131,12 @@ struct NotebookRow: View {
     private var notebookLabel: some View {
         Label(notebook.name, systemImage: notebook.icon ?? "folder")
             .tag(SidebarItem.notebook(notebook))
+            .contextMenu {
+                Button(role: .destructive) {
+                    dataService.deleteNotebook(notebook)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
     }
 }

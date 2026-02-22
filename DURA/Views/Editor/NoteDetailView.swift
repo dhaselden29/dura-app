@@ -13,6 +13,7 @@ struct NoteDetailView: View {
     @State private var pendingAnnotationAnchor = ""
     @State private var pendingAnnotationStart = 0
     @State private var pendingAnnotationLength = 0
+    @State private var selectedAnnotationID: UUID?
 
     @AppStorage("readerTheme") private var themeRaw: String = ReaderDefaults.theme
 
@@ -68,6 +69,7 @@ struct NoteDetailView: View {
                         pendingAnnotationLength = rangeLength
                         showAnnotationPopup = true
                     },
+                    focusedHighlightID: selectedAnnotationID,
                     onScrollProgressChanged: { percent in
                         var progress = note.readingProgress
                         guard percent > progress.percentRead else { return }
@@ -90,7 +92,7 @@ struct NoteDetailView: View {
 
             if showAnnotationSidebar && note.isArticle {
                 Divider()
-                AnnotationSidebarView(note: note, dataService: dataService)
+                AnnotationSidebarView(note: note, dataService: dataService, selectedAnnotationID: $selectedAnnotationID)
                     .frame(width: 280)
             }
         }
