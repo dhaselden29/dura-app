@@ -51,6 +51,7 @@ targets:
           - "Services/Podcast/DURA-Bridging-Header.h"
     resources:
       - path: DURA/Resources
+      - path: DURA/Resources/Fonts
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dura.app
@@ -75,6 +76,7 @@ targets:
           - "**/.DS_Store"
     resources:
       - path: DURA/Resources
+      - path: DURA/Resources/Fonts
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dura.app

@@ -16,6 +16,12 @@ struct NoteDetailView: View {
 
     @State private var bodyFocusRequested = false
 
+    // Reader theme
+    @AppStorage("readerTheme") private var themeRaw: String = ReaderDefaults.theme
+
+    // Highlights
+    @State private var showHighlightsPanel = false
+
     // Export state
     @State private var exportProgress: Double = 0
     @State private var exportError: String?
@@ -29,6 +35,10 @@ struct NoteDetailView: View {
     @State private var showPublishError = false
     @State private var showPublishSuccess = false
 
+    private var theme: ReaderTheme {
+        ReaderTheme(rawValue: themeRaw) ?? .light
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Metadata bar
@@ -40,6 +50,7 @@ struct NoteDetailView: View {
             TextField("Title", text: $note.title)
                 .font(.largeTitle.bold())
                 .textFieldStyle(.plain)
+                .foregroundStyle(theme.swiftUITextColor)
                 .padding(.horizontal)
                 .padding(.top, 12)
                 .onSubmit {
@@ -51,11 +62,21 @@ struct NoteDetailView: View {
                 .padding(.vertical, 8)
 
             // Block editor
-            BlockEditorView(markdown: $note.body, requestFocus: $bodyFocusRequested)
+            BlockEditorView(
+                markdown: $note.body,
+                requestFocus: $bodyFocusRequested,
+                highlights: note.highlights,
+                onHighlightCreated: { highlight in
+                    var highlights = note.highlights
+                    highlights.append(highlight)
+                    note.highlights = highlights
+                }
+            )
 
             // Status bar
             statusBar
         }
+        .background(theme.swiftUIBackground)
         .onAppear {
             lastKnownTitle = note.title
             lastKnownBody = note.body
@@ -128,6 +149,9 @@ struct NoteDetailView: View {
             Button("OK") {}
         } message: {
             Text("Your post has been published to WordPress.")
+        }
+        .sheet(isPresented: $showHighlightsPanel) {
+            HighlightsPanelView(note: note)
         }
     }
 
@@ -222,21 +246,27 @@ struct NoteDetailView: View {
     // MARK: - Status Bar
 
     private var statusBar: some View {
-        HStack {
+        let statusColor: Color = theme == .light ? .secondary : theme.swiftUITextColor.opacity(0.6)
+        return HStack {
             let wordCount = note.body.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+            let readingTime = max(1, wordCount / 238)
             Text("\(wordCount) words")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(statusColor)
 
             Text("\(note.body.count) characters")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(statusColor)
+
+            Text("~\(readingTime) min read")
+                .font(.caption)
+                .foregroundStyle(statusColor)
 
             Spacer()
 
             Text("Modified \(note.modifiedAt, style: .relative) ago")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(statusColor)
         }
         .padding(.horizontal)
         .padding(.vertical, 6)
@@ -256,6 +286,12 @@ struct NoteDetailView: View {
                 dataService.toggleFavorite(note)
             } label: {
                 Label(note.isFavorite ? "Unfavorite" : "Favorite", systemImage: note.isFavorite ? "star.slash" : "star")
+            }
+
+            Button {
+                showHighlightsPanel = true
+            } label: {
+                Label("Highlights (\(note.highlights.count))", systemImage: "highlighter")
             }
 
             Divider()
@@ -476,5 +512,68 @@ struct NoteDetailView: View {
             dataService.addTag(tag, to: note)
         }
         newTagName = ""
+    }
+}
+
+// MARK: - Highlights Panel
+
+struct HighlightsPanelView: View {
+    @Bindable var note: Note
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                let highlights = note.highlights.sorted { $0.rangeStart < $1.rangeStart }
+                if highlights.isEmpty {
+                    ContentUnavailableView(
+                        "No Highlights",
+                        systemImage: "highlighter",
+                        description: Text("Select text in the editor and tap Highlight to add one.")
+                    )
+                } else {
+                    List {
+                        ForEach(highlights) { highlight in
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(highlight.color.swiftUIColor)
+                                    .frame(width: 10, height: 10)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(highlight.anchorText)
+                                        .font(.caption)
+                                        .lineLimit(2)
+
+                                    if let annotation = highlight.annotation, !annotation.isEmpty {
+                                        Text(annotation)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+
+                                Spacer()
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .onDelete { indexSet in
+                            var highlights = note.highlights.sorted { $0.rangeStart < $1.rangeStart }
+                            highlights.remove(atOffsets: indexSet)
+                            note.highlights = highlights
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Highlights")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .frame(minWidth: 300, minHeight: 300)
     }
 }

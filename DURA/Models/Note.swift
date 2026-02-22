@@ -16,6 +16,7 @@ final class Note {
     var isBookmark: Bool = false
     var kanbanStatusRaw: String = KanbanStatus.note.rawValue
     var draftMetadataData: Data?
+    var highlightsData: Data?
 
     @Relationship(inverse: \Tag.notes)
     var tags: [Tag]? = []
@@ -69,6 +70,16 @@ final class Note {
         }
         set {
             draftMetadataData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var highlights: [Highlight] {
+        get {
+            guard let data = highlightsData else { return [] }
+            return (try? JSONDecoder().decode([Highlight].self, from: data)) ?? []
+        }
+        set {
+            highlightsData = try? JSONEncoder().encode(newValue)
         }
     }
 

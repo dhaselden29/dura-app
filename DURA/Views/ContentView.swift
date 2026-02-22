@@ -156,8 +156,13 @@ struct SettingsView: View {
                 .tabItem {
                     Label("Podcasts", systemImage: "headphones")
                 }
+
+            ReaderSettingsView()
+                .tabItem {
+                    Label("Reader", systemImage: "book")
+                }
         }
-        .frame(width: 500, height: 400)
+        .frame(width: 500, height: 450)
     }
 }
 

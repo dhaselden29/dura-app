@@ -44,6 +44,12 @@
 			<dict/>
 		</dict>
 	</array>
+	<key>ATSApplicationFontsPath</key>
+	<string>Fonts</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fonts/OpenDyslexic-Regular.otf</string>
+	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DURA needs microphone access to record voice notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
