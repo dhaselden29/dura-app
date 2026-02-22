@@ -37,6 +37,41 @@ struct BlockEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(macOS)
+            if isReadOnly {
+                ArticleWebView(
+                    markdown: markdown,
+                    highlights: highlights,
+                    onHighlightCreated: onHighlightCreated,
+                    onAnnotationRequest: onAnnotationRequest,
+                    focusedHighlightID: focusedHighlightID,
+                    onScrollProgressChanged: onScrollProgressChanged,
+                    fontSize: fontSize,
+                    lineSpacing: lineSpacing,
+                    fontFamily: fontFamily,
+                    maxWidth: maxWidth,
+                    theme: theme
+                )
+            } else {
+                MarkdownTextView(
+                    text: $markdown,
+                    formatAction: $formatAction,
+                    requestFocus: $requestFocus,
+                    isReadOnly: false,
+                    useProportionalFont: editorMode == .richText,
+                    fontSize: fontSize,
+                    lineSpacing: lineSpacing,
+                    fontFamily: fontFamily,
+                    maxWidth: maxWidth,
+                    theme: theme,
+                    highlights: highlights,
+                    onHighlightCreated: onHighlightCreated,
+                    onAnnotationRequest: onAnnotationRequest,
+                    focusedHighlightID: focusedHighlightID,
+                    onScrollProgressChanged: onScrollProgressChanged
+                )
+            }
+            #else
             MarkdownTextView(
                 text: $markdown,
                 formatAction: $formatAction,
@@ -54,14 +89,104 @@ struct BlockEditorView: View {
                 focusedHighlightID: focusedHighlightID,
                 onScrollProgressChanged: onScrollProgressChanged
             )
+            #endif
 
-            if !isReadOnly {
+            if isReadOnly {
+                readerToolbar
+            } else {
                 editorToolbar
             }
         }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Reader Toolbar (articles)
+
+    private var readerToolbar: some View {
+        HStack(spacing: 12) {
+            // Font size stepper
+            HStack(spacing: 4) {
+                Button {
+                    fontSize = max(12, fontSize - 1)
+                } label: {
+                    Image(systemName: "textformat.size.smaller")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .help("Decrease font size")
+
+                Text("\(Int(fontSize))")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .frame(minWidth: 20)
+
+                Button {
+                    fontSize = min(28, fontSize + 1)
+                } label: {
+                    Image(systemName: "textformat.size.larger")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .help("Increase font size")
+            }
+
+            Divider()
+                .frame(height: 16)
+
+            // Theme picker
+            Picker("", selection: $themeRaw) {
+                ForEach(ReaderTheme.allCases, id: \.rawValue) { t in
+                    Label(t.displayName, systemImage: t.iconName)
+                        .tag(t.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 150)
+            .help("Reader theme")
+
+            // Font picker
+            Menu {
+                ForEach(ReaderFont.allCases, id: \.rawValue) { f in
+                    Button {
+                        fontFamilyRaw = f.rawValue
+                    } label: {
+                        HStack {
+                            Text(f.displayName)
+                            if fontFamilyRaw == f.rawValue {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "textformat")
+                    .font(.caption)
+            }
+            .menuStyle(.borderlessButton)
+            .frame(width: 30)
+            .help("Font family")
+
+            // Width toggle
+            Button {
+                if maxWidth < 10000 {
+                    maxWidth = 100000
+                } else {
+                    maxWidth = 700
+                }
+            } label: {
+                Image(systemName: maxWidth < 10000 ? "arrow.left.and.right" : "arrow.right.and.line.vertical.and.arrow.left")
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            .help(maxWidth < 10000 ? "Full width" : "Constrain width")
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial)
+    }
+
+    // MARK: - Editor Toolbar (notes)
 
     private var editorToolbar: some View {
         HStack(spacing: 12) {

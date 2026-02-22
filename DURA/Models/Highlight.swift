@@ -74,6 +74,16 @@ enum HighlightColor: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    var cssColor: String {
+        switch self {
+        case .yellow: "rgba(255, 214, 10, 0.35)"
+        case .green: "rgba(48, 209, 88, 0.35)"
+        case .blue: "rgba(10, 132, 255, 0.35)"
+        case .pink: "rgba(255, 55, 95, 0.35)"
+        case .aiPurple: "rgba(175, 82, 222, 0.35)"
+        }
+    }
+
     /// Colors available for user-created highlights (excludes AI-only colors).
     static var userColors: [HighlightColor] {
         [.yellow, .green, .blue, .pink]

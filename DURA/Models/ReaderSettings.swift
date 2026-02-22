@@ -21,6 +21,22 @@ enum ReaderTheme: String, CaseIterable, Sendable {
         }
     }
 
+    var cssBackground: String {
+        switch self {
+        case .light: "#FFFFFF"
+        case .sepia: "#F4ECD8"
+        case .dark: "#1E1E1E"
+        }
+    }
+
+    var cssTextColor: String {
+        switch self {
+        case .light: "#333333"
+        case .sepia: "#5B4636"
+        case .dark: "#D4D4D4"
+        }
+    }
+
     #if canImport(AppKit)
     var backgroundColor: NSColor {
         switch self {
@@ -99,6 +115,15 @@ enum ReaderFont: String, CaseIterable, Sendable {
         case .serif: "Serif"
         case .mono: "Mono"
         case .openDyslexic: "OpenDyslexic"
+        }
+    }
+
+    var cssValue: String {
+        switch self {
+        case .system: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
+        case .serif: "'New York', Georgia, 'Times New Roman', serif"
+        case .mono: "'SF Mono', Menlo, Consolas, monospace"
+        case .openDyslexic: "'OpenDyslexic', sans-serif"
         }
     }
 
