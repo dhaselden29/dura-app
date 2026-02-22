@@ -17,6 +17,7 @@ final class Note {
     var kanbanStatusRaw: String = KanbanStatus.note.rawValue
     var draftMetadataData: Data?
     var highlightsData: Data?
+    var readingProgressData: Data?
 
     @Relationship(inverse: \Tag.notes)
     var tags: [Tag]? = []
@@ -80,6 +81,16 @@ final class Note {
         }
         set {
             highlightsData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var readingProgress: ReadingProgress {
+        get {
+            guard let data = readingProgressData else { return ReadingProgress() }
+            return (try? JSONDecoder().decode(ReadingProgress.self, from: data)) ?? ReadingProgress()
+        }
+        set {
+            readingProgressData = try? JSONEncoder().encode(newValue)
         }
     }
 

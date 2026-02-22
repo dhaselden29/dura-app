@@ -8,6 +8,7 @@ struct BlockEditorView: View {
     @Binding var requestFocus: Bool
     var highlights: [Highlight] = []
     var onHighlightCreated: ((Highlight) -> Void)?
+    var onScrollProgressChanged: ((Double) -> Void)?
 
     @State private var editorMode: EditorMode = .richText
     @State private var formatAction: FormatAction?
@@ -44,7 +45,8 @@ struct BlockEditorView: View {
                 maxWidth: maxWidth,
                 theme: theme,
                 highlights: highlights,
-                onHighlightCreated: onHighlightCreated
+                onHighlightCreated: onHighlightCreated,
+                onScrollProgressChanged: onScrollProgressChanged
             )
 
             editorToolbar

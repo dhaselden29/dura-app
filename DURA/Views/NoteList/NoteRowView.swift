@@ -4,6 +4,19 @@ struct NoteRowView: View {
     let note: Note
     let dataService: DataService
 
+    private var readingProgressLabel: Text {
+        let progress = note.readingProgress
+        let wordCount = note.body.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+        let totalMinutes = max(1, wordCount / 238)
+
+        if progress.percentRead > 0 {
+            let remaining = max(0, Int(Double(totalMinutes) * (1.0 - progress.percentRead / 100.0)))
+            return Text("\(remaining) min left · \(Int(progress.percentRead))%")
+        } else {
+            return Text("~\(totalMinutes) min read")
+        }
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             // Pin indicator
@@ -45,7 +58,7 @@ struct NoteRowView: View {
                 }
 
                 HStack(spacing: 8) {
-                    Text(note.modifiedAt, style: .relative)
+                    readingProgressLabel
                         .font(.caption)
                         .foregroundStyle(.tertiary)
 
